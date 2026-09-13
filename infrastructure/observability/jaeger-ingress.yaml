@@ -3,6 +3,8 @@ kind: Ingress
 metadata:
   name: jaeger
   namespace: istio-system
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: public
   rules:

@@ -1,0 +1,16 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: podinfo
+  namespace: default
+spec:
+  hosts:
+  - "podinfo-istio.local"
+  gateways:
+  - podinfo-gateway
+  http:
+  - route:
+    - destination:
+        host: podinfo
+        port:
+          number: 80

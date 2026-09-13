@@ -159,7 +159,7 @@ E identifique qual é o IP da sua LAN.
 
 ### ▶️ Próximo Passo
 
-Rode os comandos acima em ordem e me envie a saída dos pontos:
+Rode os comandos acima em ordem e me envie a saída dos pontos: 
 
 1. `microk8s version`
 2. `microk8s status`

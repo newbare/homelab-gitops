@@ -3,15 +3,13 @@ kind: Ingress
 metadata:
   name: jaeger
   namespace: istio-system
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: public
   rules:
   - host: jaeger.local
     http:
       paths:
-      - path: /
+      - path: /jaeger
         pathType: Prefix
         backend:
           service:

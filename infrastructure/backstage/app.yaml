@@ -16,16 +16,17 @@ spec:
     helm:
       releaseName: backstage
       values: |
-        appConfig:
-          app:
-            title: "Homelab Developer Portal"
-            baseUrl: https://backstage.local
-          backend:
-            baseUrl: https://backstage.local
-            listen:
-              port: 7007
-            cors:
-              origin: https://backstage.local
+        backstage:
+          appConfig:
+            app:
+              title: "Homelab Developer Portal"
+              baseUrl: https://backstage.local
+            backend:
+              baseUrl: https://backstage.local
+              listen:
+                port: 7007
+              cors:
+                origin: https://backstage.local
         ingress:
           enabled: false
         postgresql:

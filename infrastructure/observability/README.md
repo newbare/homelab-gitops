@@ -46,3 +46,12 @@ Solução: ClusterRole + ClusterRoleBinding adicionais.
 
 ### 4. Jaeger CR OutOfSync eterno
 O operator modifica o CR em runtime. Solução: `ignoreDifferences` na Application.
+
+# Carga para Jaeger
+```bash
+for i in {1..20}; do
+  curl -s -H "Host: bookinfo.local" http://bookinfo.local/productpage > /dev/null
+  sleep 1
+done
+```
+

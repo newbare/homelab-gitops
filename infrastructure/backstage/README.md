@@ -65,3 +65,18 @@ Impacto: cosmético. O Backstage continua funcional — basta fechar o toast.
 
 Solução definitiva: construir uma imagem customizada sem o plugin de
 notificações (trabalho significativo, não necessário para o lab).
+
+## Known Issues
+
+### NotImplementedError: plugin.notifications.service
+
+A imagem oficial `backstage/backstage` exibe um toast de erro:
+
+    NotImplementedError: No implementation available for apiRef{plugin.notifications.service}
+
+Causa: bug conhecido da imagem oficial. O plugin de notificações está ativo
+mas a API não está registrada.
+
+Impacto: cosmético. O Backstage continua funcional — basta fechar o toast.
+
+Solução definitiva: construir imagem customizada sem o plugin (não necessário para o lab).

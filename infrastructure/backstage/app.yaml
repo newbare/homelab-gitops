@@ -32,14 +32,14 @@ spec:
               providers:
                 guest:
                   dangerouslyAllowOutsideDevelopment: true
-          ingress:
-            enabled: false
-          postgresql:
-            enabled: true
-            auth:
-              password: "backstage-lab-password"
-          service:
-            type: ClusterIP
+        ingress:
+          enabled: false
+        postgresql:
+          enabled: true
+          auth:
+            password: "backstage-lab-password"
+        service:
+          type: ClusterIP
   destination:
     server: https://kubernetes.default.svc
     namespace: backstage

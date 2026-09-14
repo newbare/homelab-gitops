@@ -32,6 +32,11 @@ spec:
                 port: 7007
               cors:
                 origin: https://backstage.local
+            auth:
+              environment: production
+              providers:
+                guest:
+                  dangerouslyAllowOutsideDevelopment: true
         ingress:
           enabled: false
         postgresql:

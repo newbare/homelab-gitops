@@ -4,7 +4,7 @@ metadata:
   name: backstage
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "7" # Depois de toda a observabilidade
+    argocd.argoproj.io/sync-wave: "7"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -12,27 +12,26 @@ spec:
   source:
     repoURL: https://backstage.github.io/charts
     chart: backstage
-    targetRevision: 2.10.0 # Substitua pela versão que você encontrou
+    targetRevision: 2.10.0
     helm:
       releaseName: backstage
       values: |
-        # Configuração mínima para o laboratório
-        backstage:
-          appConfig:
-            app:
-              title: "Homelab Developer Portal"
-            backend:
-              baseUrl: http://backstage.local
-              listen:
-                port: 7007
-              cors:
-                origin: http://backstage.local
+        appConfig:
+          app:
+            title: "Homelab Developer Portal"
+            baseUrl: http://backstage.local
+          backend:
+            baseUrl: http://backstage.local
+            listen:
+              port: 7007
+            cors:
+              origin: http://backstage.local
         ingress:
-          enabled: false # Vamos criar o Ingress separadamente
+          enabled: false
         postgresql:
-          enabled: true # O chart cria um PostgreSQL para o Backstage
+          enabled: true
           auth:
-            password: "backstage-lab-password" # Apenas para o lab
+            password: "backstage-lab-password"
         service:
           type: ClusterIP
   destination:

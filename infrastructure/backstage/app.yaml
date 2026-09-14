@@ -12,7 +12,7 @@ spec:
   source:
     repoURL: https://backstage.github.io/charts
     chart: backstage
-    targetRevision: 2.10.0
+    targetRevision: 2.10.1
     helm:
       releaseName: backstage
       values: |
@@ -22,7 +22,8 @@ spec:
               title: "Homelab Developer Portal"
               baseUrl: https://backstage.local
               extensions:
-                - 'plugin:notifications': false
+                - id: 'plugin:notifications'
+                  disabled: true
             backend:
               baseUrl: https://backstage.local
               listen:

@@ -6,13 +6,11 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "6"
 spec:
-  installation_namespace: kiali-operator
   auth:
     strategy: anonymous
   deployment:
     accessible_namespaces:
       - "**"
-    ingress_enabled: false
   external_services:
     prometheus:
       url: "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090"

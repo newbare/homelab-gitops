@@ -20,7 +20,6 @@ spec:
           type: LoadBalancer
         labels:
           istio: ingressgateway
-        image: docker.io/istio/proxyv2:1.30.4
   destination:
     server: https://kubernetes.default.svc
     namespace: istio-system

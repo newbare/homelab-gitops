@@ -1,2 +1,10 @@
 istio-*/
 .DS_Store
+
+# Certificados extraídos localmente (não versionar)
+*.crt
+*.key
+*.pem
+
+# Artefatos locais do laboratório
+backstage-tls.crt

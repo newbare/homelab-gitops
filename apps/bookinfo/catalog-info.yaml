@@ -1,0 +1,15 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: bookinfo
+  description: "Aplicação de demonstração do Istio (Bookinfo)"
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+    argocd/app-name: bookinfo
+  tags:
+    - istio
+    - demo
+spec:
+  type: service
+  lifecycle: production
+  owner: guests

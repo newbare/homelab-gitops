@@ -8,6 +8,11 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-body-size: "0"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      sub_filter_once off;
+      sub_filter 'http://localhost:3000' 'http://backstage.local';
+      sub_filter 'http://localhost:7007' 'http://backstage.local';
+      sub_filter_types text/html application/javascript text/javascript;
 spec:
   ingressClassName: nginx
   rules:

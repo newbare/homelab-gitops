@@ -18,7 +18,15 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: observability
+  ignoreDifferences:
+    - group: jaegertracing.io
+      kind: Jaeger
+      jsonPointers:
+        - /spec
+        - /status
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - RespectIgnoreDifferences=true

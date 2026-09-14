@@ -8,3 +8,6 @@ istio-*/
 
 # Artefatos locais do laboratório
 backstage-tls.crt
+
+# Node
+node_modules/

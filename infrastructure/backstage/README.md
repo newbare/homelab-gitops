@@ -49,3 +49,19 @@ Solução: mover `appConfig` para o nível raiz do values.
 - `file /examples/entities.yaml does not exist` — o catálogo de exemplo
   não está na imagem.
 - `Failed to initialize kubernetes backend` — falta config do plugin K8s.
+
+## Known Issues
+
+### NotImplementedError: plugin.notifications.service
+
+A imagem oficial `backstage/backstage` exibe um toast de erro no frontend:
+
+    NotImplementedError: No implementation available for apiRef{plugin.notifications.service}
+
+Causa: o plugin de notificações está ativo na imagem, mas a API de frontend
+não está registrada. É um bug conhecido da imagem oficial.
+
+Impacto: cosmético. O Backstage continua funcional — basta fechar o toast.
+
+Solução definitiva: construir uma imagem customizada sem o plugin de
+notificações (trabalho significativo, não necessário para o lab).

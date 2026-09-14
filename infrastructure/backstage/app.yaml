@@ -21,6 +21,8 @@ spec:
             app:
               title: "Homelab Developer Portal"
               baseUrl: https://backstage.local
+              extensions:
+                - 'plugin:notifications': false
             backend:
               baseUrl: https://backstage.local
               listen:

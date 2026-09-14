@@ -20,7 +20,7 @@ spec:
           image:
             registry: docker.io
             repository: newbare/homelab-backstage
-            tag: latest
+            tag: v3
             pullPolicy: Always
           appConfig:
             app:

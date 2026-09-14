@@ -3519,7 +3519,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@backstage/plugin-search-backend@npm:^2.1.5":
+"@backstage/plugin-search-backend@npm:^2.1.6":
   version: 2.1.6
   resolution: "@backstage/plugin-search-backend@npm:2.1.6"
   dependencies:
@@ -13028,7 +13028,7 @@ __metadata:
     "@backstage/plugin-proxy-backend": "npm:^0.6.16"
     "@backstage/plugin-scaffolder-backend": "npm:^4.0.3"
     "@backstage/plugin-scaffolder-backend-module-github": "npm:^0.9.12"
-    "@backstage/plugin-search-backend": "npm:^2.1.5"
+    "@backstage/plugin-search-backend": "npm:^2.1.6"
     "@backstage/plugin-search-backend-module-catalog": "npm:^0.3.18"
     "@backstage/plugin-search-backend-module-pg": "npm:^0.5.58"
     "@backstage/plugin-search-backend-module-techdocs": "npm:^0.4.17"

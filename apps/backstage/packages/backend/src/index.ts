@@ -8,6 +8,8 @@
 
 import { createBackend } from '@backstage/backend-defaults';
 
+import { SearchPage } from '@backstage/plugin-search';
+
 const backend = createBackend();
 
 backend.add(import('@backstage/plugin-app-backend'));

@@ -19,13 +19,13 @@ spec:
         appConfig:
           app:
             title: "Homelab Developer Portal"
-            baseUrl: http://backstage.local
+            baseUrl: https://backstage.local
           backend:
-            baseUrl: http://backstage.local
+            baseUrl: https://backstage.local
             listen:
               port: 7007
             cors:
-              origin: http://backstage.local
+              origin: https://backstage.local
         ingress:
           enabled: false
         postgresql:

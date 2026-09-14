@@ -1,171 +1,176 @@
-# Homelab GitOps
 
+| Serviço | URL | Credenciais | Backend |
+|---------|-----|-------------|---------|
+| ArgoCD | https://argocd.local | `admin` / (definida) | NGINX Ingress → argocd-server:80 |
+| Kiali | http://kiali.local/kiali/ | anonymous | NGINX Ingress → kiali:20001 |
+| Jaeger | http://jaeger.local | — | NGINX Ingress → jaeger-query:16686 |
+| Grafana | http://grafana.local | `admin` / `admin` | NGINX Ingress → kube-prometheus-stack-grafana:80 |
+| Bookinfo | http://bookinfo.local/productpage | — | Istio Gateway → productpage:9080 |
 
+> ⚠️ O ArgoCD usa HTTPS (certificado self-signed). O navegador vai avisar.
 
-### 🔍 Análise das Versões Disponíveis
+---
 
-| Canal | Versão K8s | Data | Comentário |
-|-------|-----------|------|------------|
-| `latest/stable` | **1.36.2** | 2026-06-24 | ✅ Mais recente, EOL em ~2027 |
-| `1.35/stable` | 1.35.6 | 2026-07-02 | ✅ Boa opção, EOL longo |
-| `1.34/stable` | 1.34.9 | 2026-06-17 | ⚠️ EOL em out/2026 |
-| `1.33/stable` | 1.33.13 | 2026-07-01 | ⚠️ Já em EOL |
+## 🔀 sync-waves (ordem de sincronização)
 
-**Recomendação:** Usar **`1.35/stable` (v1.35.6)**.
+| Wave | Application | O que faz |
+|------|-------------|-----------|
+| -2 | metrics-server | Métricas para HPA |
+| -1 | namespaces | Labels (istio-injection) |
+| 0 | istio-base | CRDs do Istio |
+| 1 | istiod | Control plane |
+| 2 | istio-gateway | Ingress Gateway |
+| 3 | bookinfo | Aplicação de demonstração |
+| 4 | kube-prometheus-stack, cert-manager | Métricas + certificados |
+| 5 | kiali-operator, jaeger-operator | Operadores |
+| 6 | kiali, jaeger | CRs (instâncias) |
 
-Por quê?
+---
 
-- O `latest/stable` (1.36.2) é muito recente e pode ter incompatibilidades com Helm charts que ainda não foram atualizados (Istio, MetalLB, ArgoCD).
-- O `1.35/stable` é maduro, tem suporte até ~2027 e é **totalmente compatível** com as versões mais recentes do Istio 1.30, ArgoCD v3.5, MetalLB 0.16.1 e NGINX Ingress LTS.
-- Fixar o canal (`--channel=1.35/stable`) evita que um `snap refresh` futuro quebre seu laboratório.
+## 🎯 Fases de Implementação
 
-### 🚀 Fase 1: Instalação do MicroK8s
+| Fase | O que foi feito | Documentação |
+|------|-----------------|--------------|
+| 1 | MicroK8s 1.35.6 + dns + hostpath-storage + rbac | (este README) |
+| 2 | MetalLB 0.16.1 via Helm + IPAddressPool + L2Advertisement | `infrastructure/metallb/README.md` |
+| 3 | NGINX Ingress Controller 4.15.1 via Helm | `infrastructure/ingress-nginx/README.md` |
+| 4 | ArgoCD v3.5.2 via Helm + Ingress + Application metallb | `infrastructure/argocd/README.md` |
+| 5 | Istio 1.30.4 (base + istiod + gateway) + Bookinfo + sidecar injection | `infrastructure/istio/README.md` |
+| 6 | Observabilidade: Prometheus, Grafana, Kiali, Jaeger, metrics-server, cert-manager | `infrastructure/observability/README.md` |
 
-**1. Instalar fixando o canal 1.35/stable:**
+---
+
+## 🧠 Lições Aprendidas
+
+### 1. MetalLB + ARP (Fase 2)
+
+**Sintoma:** serviços `LoadBalancer` recebiam EXTERNAL-IP, mas o tráfego não
+chegava, ou outros dispositivos da rede perdiam conectividade.
+
+**Causa raiz:** o MetalLB em modo L2 responde ARP pelos IPs do pool em **todas**
+as interfaces do host. O servidor tem múltiplas interfaces:
+- `enp3s0` (LAN, 192.168.99.5)
+- `vxlan.calico` (10.1.56.0/32)
+- `docker0` / `veth*` (se Docker/Podman estiver ativo)
+
+Respostas ARP na interface errada causam conflito de IP na rede.
+
+**Solução:** especificar `interfaces: [enp3s0]` no `L2Advertisement`.
+
+**Diagnóstico:** `ip -4 addr show | grep -E "^[0-9]+:|inet "`
+
+### 2. Istio gateway chart não aceita `image` (Fase 5)
+
+**Sintoma:** `helm template` falha com `additional properties 'image' not allowed`.
+
+**Causa raiz:** o chart `istio/gateway` 1.30.x tem `additionalProperties: false`
+no schema. A chave `image` não existe no `values.yaml`.
+
+**Solução:** não especificar `image`. A imagem do `istio-proxy` é injetada pelo
+webhook do `istiod` em runtime.
+
+### 3. Pod do gateway com imagem "auto" (Fase 5)
+
+**Sintoma:** pod `istio-ingress` preso em `ImagePullBackOff` puxando imagem `"auto"`.
+
+**Causa raiz:** o webhook do `istiod` não conseguiu injetar a imagem na criação
+do pod (istiod ainda não estava pronto).
+
+**Solução:** `kubectl -n istio-system delete pod -l app=istio-ingress`.
+O pod recriado recebe a imagem correta.
+
+### 4. Webhooks do Istio OutOfSync eterno (Fase 5)
+
+**Sintoma:** Applications `istio-base`, `istiod`, `istio-gateway` sempre `OutOfSync`.
+
+**Causa raiz:** o `istiod` modifica o `caBundle` e o `failurePolicy` dos webhooks
+em runtime.
+
+**Solução:** `ignoreDifferences` nas Applications para
+`ValidatingWebhookConfiguration` e `MutatingWebhookConfiguration`.
+
+### 5. HPA Degraded sem metrics-server (Fase 6)
+
+**Sintoma:** `istiod` e `istio-gateway` apareciam como `Degraded` no ArgoCD.
+
+**Causa raiz:** o HPA não conseguia ler métricas porque o `metrics-server` não
+estava instalado. A API `pods.metrics.k8s.io` não existia.
+
+**Solução:** instalar o `metrics-server` via ArgoCD com
+`--kubelet-insecure-tls` (MicroK8s usa certificados self-signed nos kubelets).
+
+### 6. jaeger-operator requer cert-manager (Fase 6)
+
+**Sintoma:** `jaeger-operator` falhava com
+`cert-manager.io/Certificate not found`.
+
+**Causa raiz:** o chart 2.57.0 cria um `Certificate` e um `Issuer` do cert-manager
+para o webhook. Sem cert-manager instalado, os CRDs não existem.
+
+**Solução:** instalar o `cert-manager` via ArgoCD **antes** do `jaeger-operator`.
+
+### 7. jaeger-operator requer RBAC extra (Fase 6)
+
+**Sintoma:** pods do Jaeger não subiam. Log do operator:
+`cannot list resource "ingressclasses" in API group "networking.k8s.io"`.
+
+**Causa raiz:** o ClusterRole padrão do chart não inclui permissão para listar
+`IngressClass` (escopo de cluster).
+
+**Solução:** criar `ClusterRole` + `ClusterRoleBinding` adicionais
+(`infrastructure/observability/jaeger-operator-rbac.yaml`).
+
+### 8. Kiali CR: campos obsoletos (Fase 6)
+
+**Sintoma:** `strict decoding error: unknown field "spec.deployment.ingress_enabled",
+unknown field "spec.installation_namespace"`.
+
+**Causa raiz:** esses campos foram removidos no Kiali 2.31.0.
+
+**Solução:**
+- `installation_namespace` → o namespace vem do `metadata.namespace`.
+- `deployment.ingress_enabled` → usar Ingress separado (NGINX).
+
+### 9. Jaeger CR OutOfSync eterno (Fase 6)
+
+**Sintoma:** Application `jaeger` sempre `OutOfSync`.
+
+**Causa raiz:** o `jaeger-operator` modifica o CR em runtime (adiciona defaults
+no `/spec` e `status`).
+
+**Solução:** `ignoreDifferences` na Application para `/spec` e `/status`, com
+`RespectIgnoreDifferences=true` no `syncPolicy`.
+
+### 10. GitOps de verdade
+
+**Padrão:** tudo é commitado no Git. O cluster converge para o estado declarado.
+O `kubectl apply` direto vira exceção (só para as Applications iniciais).
+
+**Exemplo:** o teste de self-heal do MetalLB — delete o `IPAddressPool` e o
+ArgoCD recria automaticamente em segundos.
+
+---
+
+## 🛠️ Comandos Úteis
 
 ```bash
-sudo snap install microk8s --classic --channel=1.35/stable
-```
-
-**2. Adicionar seu usuário ao grupo microk8s e ajustar permissões:**
-
-```bash
-sudo usermod -a -G microk8s $USER
-sudo chown -f -R $USER ~/.kube
-```
-
-**3. Aplicar o novo grupo (ou faça logout/login depois):**
-
-```bash
-newgrp microk8s
-```
-
-> Se o `newgrp` abrir um subshell, tudo bem — você pode continuar nele. Se preferir, feche a sessão SSH e reconecte.
-
-**4. Aguardar o cluster ficar pronto:**
-
-```bash
-microk8s status --wait-ready
-```
-
-Isso pode levar de 1 a 3 minutos na primeira execução.
-
-**5. Verificar a versão instalada:**
-
-```bash
-microk8s version
-```
-
-Deve retornar algo como `MicroK8s v1.35.6 revision 9072`.
-
-### 🔌 Fase 1 (continuação): Habilitar Apenas os Add-ons Essenciais
-
-Conforme o roteiro, **não** habilitaremos `metallb`, `ingress` nem `istio` — esses serão instalados manualmente via Helm.
-
-```bash
-microk8s enable dns
-microk8s enable hostpath-storage
-microk8s enable rbac
-```
-
-**Aguarde cada um terminar** antes de rodar o próximo. O `dns` (CoreDNS) demora um pouco mais.
-
-**Verificação:**
-
-```bash
-microk8s status
-```
-
-Você deve ver `dns: enabled`, `hostpath-storage: enabled`, `rbac: enabled`, e **`metallb: disabled`**, **`ingress: disabled`**, **`istio: disabled`**.
-
-### 📄 Fase 1 (final): Preparar o kubeconfig para o Mac
-
-**1. No servidor, gerar o kubeconfig:**
-
-```bash
-microk8s config > ~/microk8s-config.yaml
-```
-
-**2. Descobrir o IP correto do servidor na rede:**
-
-```bash
-ip -4 addr show | grep inet
-```
-
-Confirme que é o `192.168.99.5`. Se for, ótimo.
-
-**3. Ajustar o `server:` no kubeconfig gerado.**
-
-O MicroK8s gera o kubeconfig apontando para o IP da interface interna (geralmente `127.0.0.1` ou o IP da bridge). Você precisa trocar para o IP da LAN:
-
-```bash
-sed -i 's|server: https://.*:16443|server: https://192.168.99.5:16443|' ~/microk8s-config.yaml
-```
-
-Confirme com:
-
-```bash
-grep server ~/microk8s-config.yaml
-```
-
-Deve mostrar `server: https://192.168.99.5:16443`.
-
-**4. Copiar o arquivo para o Mac.**
-
-No **Mac**, execute:
-
-```bash
-mkdir -p ~/.kube
-scp jefferson@192.168.99.5:~/microk8s-config.yaml ~/.kube/config
-chmod 600 ~/.kube/config
-```
-
-> Ajuste o usuário `jefferson` se for diferente.
-
-**5. (Ainda no Mac) Instalar o `kubectl` com versão compatível.**
-
-Como o cluster é 1.35, instale o kubectl 1.35:
-
-```bash
-brew install kubectl@1.35
-```
-
-> Se essa formula não existir, instale via download direto:
-> ```bash
-> curl -LO "https://dl.k8s.io/release/v1.35.6/bin/darwin/amd64/kubectl"
-> chmod +x kubectl
-> sudo mv kubectl /usr/local/bin/kubectl
-> ```
-> (Use `darwin/arm64` se seu Mac for Apple Silicon.)
-
-**6. Testar a conexão do Mac ao cluster:**
-
-```bash
-kubectl get nodes
+# Estado geral
+kubectl -n argocd get applications
 kubectl get pods -A
-```
+kubectl top nodes
+kubectl top pods -A
 
-Se retornar o nó `resilience-system-product` como `Ready` e os pods do `kube-system` rodando, **Fase 1 concluída com sucesso**. 🎉
+# ArgoCD CLI
+argocd login argocd.local --insecure --grpc-web
+argocd app list
+argocd app get <app>
+argocd app sync <app> --force
 
-### ⚠️ Ponto de Atenção: IP do Servidor
+# Forçar rollout do Istio gateway
+kubectl -n istio-system delete pod -l app=istio-ingress
 
-Antes de rodar o `sed`, **confirme** que o IP do servidor é mesmo `192.168.99.5`. Se o servidor tiver múltiplas interfaces (ex: uma bridge do Docker/Podman, uma VM, etc.), o `microk8s config` pode gerar um IP errado. Rode:
-
-```bash
-hostname -I
-```
-
-E identifique qual é o IP da sua LAN.
-
-### ▶️ Próximo Passo
-
-Rode os comandos acima em ordem e me envie a saída dos pontos: 
-
-1. `microk8s version`
-2. `microk8s status`
-3. `grep server ~/microk8s-config.yaml`
-4. (no Mac) `kubectl get nodes`
-
-Com isso validado, partimos para a **Fase 2: MetalLB via Helm** — e aí reinstalamos o `helm` no Mac também.
-
-Quer que eu já prepare o roteiro da Fase 2 enquanto você executa a Fase 1?
+# Gerar tráfego no Bookinfo
+for i in {1..20}; do
+  curl -s -H "Host: bookinfo.local" http://192.168.99.201/productpage > /dev/null
+  sleep 1
+done

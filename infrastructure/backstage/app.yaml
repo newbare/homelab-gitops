@@ -17,13 +17,15 @@ spec:
       releaseName: backstage
       values: |
         backstage:
+          image:
+            registry: docker.io
+            repository: newbare/homelab-backstage
+            tag: latest
+            pullPolicy: Always
           appConfig:
             app:
               title: "Homelab Developer Portal"
               baseUrl: https://backstage.local
-              extensions:
-                - id: 'plugin:notifications'
-                  disabled: true
             backend:
               baseUrl: https://backstage.local
               listen:

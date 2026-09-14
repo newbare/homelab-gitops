@@ -1,0 +1,21 @@
+apiVersion: jaegertracing.io/v1
+kind: Jaeger
+metadata:
+  name: jaeger
+  namespace: observability
+  annotations:
+    argocd.argoproj.io/sync-wave: "6"
+spec:
+  strategy: production
+  ingress:
+    enabled: false
+  storage:
+    type: memory
+  query:
+    options:
+      log-level: info
+  collector:
+    options:
+      log-level: info
+  agent:
+    strategy: DaemonSet

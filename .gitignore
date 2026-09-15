@@ -11,3 +11,4 @@ backstage-tls.crt
 
 # Node
 node_modules/
+.vscode/

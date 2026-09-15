@@ -1,0 +1,58 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: backstage
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "7"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://backstage.github.io/charts
+    chart: backstage
+    targetRevision: 2.10.1
+    helm:
+      releaseName: backstage
+      values: |
+        backstage:
+          extraEnvVarsSecrets:
+            - backstage-github-token
+          appConfig:
+            app:
+              title: "Homelab Developer Portal"
+              baseUrl: https://backstage.local
+            backend:
+              baseUrl: https://backstage.local
+              listen:
+                port: 7007
+              cors:
+                origin: https://backstage.local
+            auth:
+              environment: production
+              providers:
+                guest:
+                  dangerouslyAllowOutsideDevelopment: true
+            integrations:
+              github:
+                - host: github.com
+                  token: ${GITHUB_TOKEN}
+        ingress:
+          enabled: false
+        postgresql:
+          enabled: true
+          auth:
+            password: "backstage-lab-password"
+        service:
+          type: ClusterIP
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: backstage
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

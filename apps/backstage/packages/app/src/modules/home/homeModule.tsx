@@ -1,6 +1,5 @@
-import { createFrontendModule, PageBlueprint } from '@backstage/frontend-plugin-api';
+import { createFrontendModule } from '@backstage/frontend-plugin-api';
 import { HomePageWidgetBlueprint } from '@backstage/plugin-home-react/alpha';
-import { HomepageCompositionRoot } from '@backstage/plugin-home';
 import { MarkdownContent } from '@backstage/core-components';
 
 const content = `
@@ -38,16 +37,7 @@ const gettingStartedWidget = HomePageWidgetBlueprint.make({
   },
 });
 
-// ⬇️ NOVO: registra a rota /home
-const homePage = PageBlueprint.make({
-  params: {
-    path: '/home',
-    title: 'Home',
-    loader: async () => <HomepageCompositionRoot />,
-  },
-});
-
 export const homeModule = createFrontendModule({
   pluginId: 'home',
-  extensions: [homePage, gettingStartedWidget],
+  extensions: [gettingStartedWidget],
 });

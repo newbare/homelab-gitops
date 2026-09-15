@@ -20,7 +20,7 @@ spec:
           image:
             registry: docker.io
             repository: newbare/homelab-backstage
-            tag: v6
+            tag: v7
             pullPolicy: Always
           extraEnvVarsSecrets:
             - backstage-github-token

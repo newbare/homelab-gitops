@@ -11,8 +11,12 @@ graph TB
     User([👤 Usuário<br/>MacBook])
 
     subgraph "Homelab MK8s"
+        subgraph "Namespace: metallb-system"
+            METALLB[MetalLB<br/>lab-pool<br/>192.168.99.200-250]
+        end
+
         subgraph "Ingress"
-            NGINX[NGINX Ingress<br/>backstage.local]
+            NGINX[NGINX Ingress<br/>backstage.local<br/>IP: 192.168.99.200]
             Cert[cert-manager<br/>selfsigned-issuer]
         end
 
@@ -39,7 +43,8 @@ graph TB
     DOCKER[(Docker Hub:<br/>newbare/homelab-backstage:v7)]
     GIT[(GitHub:<br/>newbare/homelab-gitops)]
 
-    User -->|HTTPS 443| NGINX
+    User -->|"HTTPS 443<br/>backstage.local"| METALLB
+    METALLB -->|"atribui IP<br/>192.168.99.200"| NGINX
     NGINX -->|proxy HTTP 80| SVC_BE
     SVC_BE --> POD_BE
     POD_BE --> CM
@@ -61,6 +66,7 @@ graph TB
     style POD_BE fill:#4a9eff,color:#fff
     style CM fill:#f0ad4e,color:#000
     style PG fill:#5cb85c,color:#fff
+    style METALLB fill:#9b59b6,color:#fff
 ```
     
 
@@ -143,7 +149,26 @@ graph TB
 
 **Responsabilidade:** terminação TLS, roteamento, headers.
 
-### 2. TLS (cert-manager)
+### 2. MetalLB (LoadBalancer)
+
+| Atributo | Valor |
+|---|---|
+| **Namespace** | `metallb-system` |
+| **IPAddressPool** | `lab-pool` |
+| **Range** | `192.168.99.200` a `192.168.99.250` (51 IPs) |
+| **Arquivo** | `infrastructure/metallb/ipaddresspool.yaml` |
+| **IP atribuído ao Ingress** | `192.168.99.200` |
+
+**Responsabilidade:** atribuir IPs "externos" (da LAN) a Services do tipo
+`LoadBalancer`. No homelab, o Ingress NGINX recebe `192.168.99.200`.
+
+**Por que esse range:** o modem DHCP usa `192.168.99.1-199`; o MetalLB usa
+`192.168.99.200-250`. **Sem sobreposição.**
+
+**⚠️ Acoplamento:** se o IP do host MicroK8s mudar (DHCP), o
+`/etc/hosts` do MacBook precisa ser atualizado.
+
+### 3. TLS (cert-manager)
 
 | Atributo | Valor |
 |---|---|
@@ -154,7 +179,7 @@ graph TB
 
 **Responsabilidade:** gerar certificado auto-assinado pra `backstage.local`.
 
-### 3. Backstage (Deployment)
+### 4. Backstage (Deployment)
 
 | Atributo | Valor |
 |---|---|
@@ -168,7 +193,7 @@ graph TB
 
 **Responsabilidade:** servir o app frontend + APIs internas.
 
-### 4. ConfigMap `backstage-app-config`
+### 5. ConfigMap `backstage-app-config`
 
 | Atributo | Valor |
 |---|---|
@@ -179,7 +204,7 @@ graph TB
 
 **⚠️ Ponto crítico:** o Backstage **não lê** o `app-config.yaml` empacotado na imagem. Ele lê **este ConfigMap**.
 
-### 5. PostgreSQL (StatefulSet)
+### 6. PostgreSQL (StatefulSet)
 
 | Atributo | Valor |
 |---|---|
@@ -191,7 +216,7 @@ graph TB
 
 **Responsabilidade:** persistir catálogo, user settings, etc.
 
-### 6. ArgoCD (GitOps)
+### 7. ArgoCD (GitOps)
 
 | Atributo | Valor |
 |---|---|
@@ -263,6 +288,7 @@ Toda mudança no ConfigMap incrementa `resourceVersion`. Se ele **não** muda ap
 | **NGINX Ingress** | Controller | Namespace `ingress-nginx` |
 | **cert-manager** | Controller | Namespace `cert-manager` |
 | **ArgoCD** | GitOps | Namespace `argocd` |
+| **MetalLB** | LoadBalancer | Namespace `metallb-system` |
 
 ## 🔗 Ver também
 

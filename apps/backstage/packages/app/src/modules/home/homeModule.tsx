@@ -1,5 +1,6 @@
-import { createFrontendModule } from '@backstage/frontend-plugin-api';
+import { createFrontendModule, PageBlueprint } from '@backstage/frontend-plugin-api';
 import { HomePageWidgetBlueprint } from '@backstage/plugin-home-react/alpha';
+import { HomepageCompositionRoot } from '@backstage/plugin-home';
 import { MarkdownContent } from '@backstage/core-components';
 
 const content = `
@@ -23,15 +24,6 @@ software, services, and documentation.
 - [Customizing Your Homepage](https://backstage.io/docs/getting-started/homepage)
 - [Adding Plugins](https://backstage.io/docs/plugins)
 - [Contributing](https://github.com/backstage/backstage/blob/master/CONTRIBUTING.md)
-
-### How to Edit This Card
-
-This widget is defined in \`packages/app/src/modules/home/homeModule.tsx\`.
-You can update the markdown content there to welcome your team with
-your own links and getting started tips.
-
-To remove this card entirely, delete the getting started widget and
-remove it from the home module's extensions array in this file.
 `;
 
 const gettingStartedWidget = HomePageWidgetBlueprint.make({
@@ -46,7 +38,16 @@ const gettingStartedWidget = HomePageWidgetBlueprint.make({
   },
 });
 
+// ⬇️ NOVO: registra a rota /home
+const homePage = PageBlueprint.make({
+  params: {
+    path: '/home',
+    title: 'Home',
+    loader: async () => <HomepageCompositionRoot />,
+  },
+});
+
 export const homeModule = createFrontendModule({
   pluginId: 'home',
-  extensions: [gettingStartedWidget],
+  extensions: [homePage, gettingStartedWidget],
 });

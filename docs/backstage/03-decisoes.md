@@ -587,8 +587,6 @@ Os outros widgets usam **defaults** (sem `config` extra).
 
 ---
 
----
-
 ## ADR-011: MetalLB como LoadBalancer interno
 
 **Status:** Aceita

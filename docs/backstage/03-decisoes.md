@@ -587,6 +587,82 @@ Os outros widgets usam **defaults** (sem `config` extra).
 
 ---
 
+---
+
+## ADR-011: MetalLB como LoadBalancer interno
+
+**Status:** Aceita
+**Data:** 2026-09-13
+
+### Contexto
+
+O MicroK8s **não tem LoadBalancer nativo**. Por padrão, Services do tipo
+`LoadBalancer` ficam com IP `<pending>` — sem acesso externo.
+
+No homelab, o Ingress NGINX precisa de um IP "externo" pra ser acessível
+do MacBook.
+
+### Decisão
+
+Usar **MetalLB** com o seguinte pool de IPs:
+
+```yaml
+# infrastructure/metallb/ipaddresspool.yaml
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: lab-pool
+  namespace: metallb-system
+spec:
+  addresses:
+    - 192.168.99.200-192.168.99.250
+```
+
+**Range:** `192.168.99.200` a `192.168.99.250` = **51 IPs**.
+
+**Por que esse range específico:**
+
+- O modem DHCP serve `192.168.99.1` a `192.168.99.199`
+- O MetalLB usa `192.168.99.200` a `192.168.99.250`
+- **Sem sobreposição** — evita conflito de IP
+
+### Consequências
+
+**Positivas:**
+
+- **Ingress acessível** de qualquer máquina da LAN
+- **IPs estáveis** dentro do cluster (o MetalLB gerencia)
+- **Sem cloud** — tudo local
+- **Fácil de expandir:** adicionar mais IPs é só editar o range
+- **Padrão de mercado:** MetalLB é o LoadBalancer mais usado em clusters
+  bare-metal
+
+**Negativas:**
+
+- **Acoplamento com a rede local:** se a rede mudar (ex: mudar de
+  `192.168.99.0/24` pra outra faixa), o MetalLB precisa ser reconfigurado
+- **DHCP do host pode conflitar:** o IP do host MicroK8s é atribuído por
+  DHCP (não fixo). Se o modem mudar, o `/etc/hosts` do MacBook precisa ser
+  atualizado
+- **Range fixo:** 51 IPs é suficiente pro homelab, mas limitado se o
+  cluster crescer muito
+
+### Alternativas consideradas
+
+1. **NodePort** — descartada: portas altas (30000-32767), feio
+2. **`kubectl port-forward`** — descartada: manual, não persiste
+3. **Ingress sem LoadBalancer** — descartada: Ingress precisa de IP externo
+4. **Cloud LoadBalancer** — descartada: não há cloud no homelab
+5. **MetalLB com range maior** — descartada: 51 IPs é suficiente
+6. **Traefik como LoadBalancer** — descartada: MetalLB é mais simples
+
+### Observação futura
+
+- **Fixar o IP do host MicroK8s** (reserva DHCP no modem ou IP estático no
+  servidor Linux) — ver seção 16.5 do [runbook](./04-runbook.md)
+- **Considerar IPv6** se a rede suportar
+- **Automatizar o `/etc/hosts`** (via Ansible ou script)
+
 ## 📌 Resumo das decisões
 
 | ADR | Decisão | Impacto |
@@ -601,6 +677,7 @@ Os outros widgets usam **defaults** (sem `config` extra).
 | 008 | Yarn 1 em vez de Yarn 4 | 🟡 Médio (compatibilidade) |
 | 009 | PostgreSQL interno (bitnamilegacy) | 🟡 Médio (custo/complexidade) |
 | 010 | Apenas `toolkit` e `world-clock` customizados | 🟢 Baixo (polish) |
+| 011 | MetalLB como LoadBalancer interno | 🟡 Médio (rede local) |
 
 ## 🔗 Ver também
 

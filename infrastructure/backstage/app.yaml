@@ -110,6 +110,10 @@ spec:
                 port: 7007
               cors:
                 origin: https://backstage.local
+              csp:
+                connect-src:
+                  - "'self'"
+                  - "https:"
             auth:
               environment: production
               providers:

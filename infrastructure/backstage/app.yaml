@@ -1,139 +1,95 @@
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: backstage
-  namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "7"
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
-spec:
-  project: default
-  source:
-    repoURL: https://backstage.github.io/charts
-    chart: backstage
-    targetRevision: 2.10.1
-    helm:
-      releaseName: backstage
-      values: |
-        backstage:
-          image:
-            registry: docker.io
-            repository: newbare/homelab-backstage
-            tag: v7
-            pullPolicy: Always
-          extraEnvVarsSecrets:
-            - backstage-github-token
-          appConfig:
-            app:
-              title: "Homelab Developer Portal"
-              baseUrl: https://backstage.local
-              packages: all
-              extensions:
-                - page:home:
-                    config:
-                      path: /
-                      defaultConfig:
-                        - component: HomePageSearchBar
-                          column: 0
-                          row: 0
-                          width: 12
-                          height: 2
-                          deletable: false
-                        - component: GettingStarted
-                          column: 0
-                          row: 1
-                          width: 4
-                          height: 11
-                        - component: HomePageStarredEntities
-                          column: 4
-                          row: 2
-                          width: 4
-                          height: 4
-                        - component: HomePageRandomJoke
-                          column: 8
-                          row: 2
-                          width: 4
-                          height: 4
-                        - component: HomePageToolkit
-                          column: 4
-                          row: 6
-                          width: 4
-                          height: 3
-                        - component: HomePageWorldClock
-                          column: 8
-                          row: 6
-                          width: 4
-                          height: 3
-                        - component: HomePageMostVisited
-                          column: 4
-                          row: 9
-                          width: 4
-                          height: 4
-                        - component: HomePageRecentlyVisited
-                          column: 8
-                          row: 9
-                          width: 4
-                          height: 4
-                - home-page-widget:home/toolkit:
-                    config:
-                      tools:
-                        - url: https://backstage.io/docs
-                          label: Docs
-                          icon: docs
-                        - url: https://github.com/backstage/backstage
-                          label: GitHub
-                          icon: github
-                        - url: https://github.com/backstage/backstage/blob/master/CONTRIBUTING.md
-                          label: Contributing
-                          icon: docs
-                        - url: https://backstage.io/plugins
-                          label: Plugins Directory
-                          icon: kind:component
-                        - url: https://github.com/backstage/backstage/issues/new/choose
-                          label: Submit New Issue
-                          icon: github
-                - home-page-widget:home/world-clock:
-                    config:
-                      clockConfigs:
-                        - label: NYC
-                          timeZone: America/New_York
-                        - label: UTC
-                          timeZone: UTC
-                        - label: STO
-                          timeZone: Europe/Stockholm
-                        - label: TYO
-                          timeZone: Asia/Tokyo
-            backend:
-              baseUrl: https://backstage.local
-              listen:
-                port: 7007
-              cors:
-                origin: https://backstage.local
-            auth:
-              environment: production
-              providers:
-                guest:
-                  dangerouslyAllowOutsideDevelopment: true
-            integrations:
-              github:
-                - host: github.com
-                  token: ${GITHUB_TOKEN}
-        ingress:
-          enabled: false
-        postgresql:
-          enabled: true
-          auth:
-            password: "backstage-lab-password"
-        service:
-          type: ClusterIP
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: backstage
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-      - ServerSideApply=true
+appConfig:
+  app:
+    title: "Homelab Developer Portal"
+    baseUrl: https://backstage.local
+    packages: all
+    extensions:
+      - page:home:
+          config:
+            path: /
+            defaultConfig:
+              - component: HomePageSearchBar
+                column: 0
+                row: 0
+                width: 12
+                height: 2
+                deletable: false
+              - component: GettingStarted
+                column: 0
+                row: 1
+                width: 4
+                height: 11
+              - component: HomePageStarredEntities
+                column: 4
+                row: 2
+                width: 4
+                height: 4
+              - component: HomePageRandomJoke
+                column: 8
+                row: 2
+                width: 4
+                height: 4
+              - component: HomePageToolkit
+                column: 4
+                row: 6
+                width: 4
+                height: 3
+              - component: HomePageWorldClock
+                column: 8
+                row: 6
+                width: 4
+                height: 3
+              - component: HomePageMostVisited
+                column: 4
+                row: 9
+                width: 4
+                height: 4
+              - component: HomePageRecentlyVisited
+                column: 8
+                row: 9
+                width: 4
+                height: 4
+      - home-page-widget:home/toolkit:
+          config:
+            tools:
+              - url: https://backstage.io/docs
+                label: Docs
+                icon: docs
+              - url: https://github.com/backstage/backstage
+                label: GitHub
+                icon: github
+              - url: https://github.com/backstage/backstage/blob/master/CONTRIBUTING.md
+                label: Contributing
+                icon: docs
+              - url: https://backstage.io/plugins
+                label: Plugins Directory
+                icon: kind:component
+              - url: https://github.com/backstage/backstage/issues/new/choose
+                label: Submit New Issue
+                icon: github
+      - home-page-widget:home/world-clock:
+          config:
+            clockConfigs:
+              - label: NYC
+                timeZone: America/New_York
+              - label: UTC
+                timeZone: UTC
+              - label: STO
+                timeZone: Europe/Stockholm
+              - label: TYO
+                timeZone: Asia/Tokyo
+  backend:
+    baseUrl: https://backstage.local
+    listen:
+      port: 7007
+    cors:
+      origin: https://backstage.local
+  auth:
+    environment: production
+    providers:
+      guest:
+        dangerouslyAllowOutsideDevelopment: true
+  integrations:
+    github:
+      - host: github.com
+        token: ${GITHUB_TOKEN}

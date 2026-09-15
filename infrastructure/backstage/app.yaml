@@ -17,6 +17,11 @@ spec:
       releaseName: backstage
       values: |
         backstage:
+          image:
+            registry: docker.io
+            repository: newbare/homelab-backstage
+            tag: v3
+            pullPolicy: Always
           extraEnvVarsSecrets:
             - backstage-github-token
           appConfig:

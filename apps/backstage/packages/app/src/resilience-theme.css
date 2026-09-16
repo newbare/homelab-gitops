@@ -1,0 +1,53 @@
+/* ============================================
+   Resilience Cloud Theme — Backstage UI (BUI)
+   Conforme doc oficial:
+   https://backstage.io/docs/conf/user-interface/
+   ============================================ */
+
+/* Tema claro (light) — botões primários */
+[data-theme-mode='light'] {
+    /* Fundo do app */
+    --bui-bg-app: #f7fafc;
+
+    /* Botões primários (Create, etc) */
+    --bui-bg-solid: #FF9900;
+    --bui-fg-solid: #ffffff;
+
+    /* Texto principal */
+    --bui-fg-primary: #1a202c;
+    --bui-fg-secondary: #4a5568;
+
+    /* Bordas */
+    --bui-border-1: #e2e8f0;
+    --bui-border-2: #cbd5e0;
+}
+
+/* Ataque direto ao ButtonLink (pra garantir) */
+.bui-ButtonLink[data-variant='primary'],
+a[data-variant='primary'],
+button[data-variant='primary'] {
+    background-color: #FF9900 !important;
+    color: #ffffff !important;
+}
+
+.bui-ButtonLink[data-variant='primary']:hover,
+a[data-variant='primary']:hover,
+button[data-variant='primary']:hover {
+    background-color: #e68900 !important;
+}
+
+/* ⬇️ Texto do banner (pageTheme) em preto */
+header .MuiTypography-h1,
+header .MuiTypography-root,
+header h1,
+header .bui-HeaderTitle,
+header [class*="HeaderTitle"] {
+    color: #1a202c !important;
+}
+
+/* Se o texto for um SVG ou ícone, força preto também */
+header .MuiTypography-h1 svg,
+header .MuiTypography-root svg {
+    fill: #1a202c !important;
+    color: #1a202c !important;
+}

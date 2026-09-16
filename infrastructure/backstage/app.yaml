@@ -20,13 +20,13 @@ spec:
           image:
             registry: docker.io
             repository: newbare/homelab-backstage
-            tag: v7
+            tag: v19
             pullPolicy: Always
           extraEnvVarsSecrets:
             - backstage-github-token
           appConfig:
             app:
-              title: "Homelab Developer Portal"
+              title: "Resilience Cloud Portal"
               baseUrl: https://backstage.local
               packages: all
               extensions:
@@ -104,6 +104,9 @@ spec:
                           timeZone: Europe/Stockholm
                         - label: TYO
                           timeZone: Asia/Tokyo
+                # ⬇️ NOVO: Visit Tracking (habilita Most Visited + Recently Visited)
+                - api:home/visits: true
+                - app-root-element:home/visit-listener: true
             backend:
               baseUrl: https://backstage.local
               listen:

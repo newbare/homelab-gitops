@@ -3,7 +3,16 @@ import catalogPlugin from '@backstage/plugin-catalog/alpha';
 import * as plugins from './plugins';
 import { navModule } from './modules/nav';
 import { homeModule } from './modules/home';
+import { themeModule } from './modules/theme';
+
+import './resilience-theme.css';
 
 export default createApp({
-  features: [catalogPlugin, ...Object.values(plugins), navModule, homeModule],
+  features: [
+    catalogPlugin,
+    ...Object.values(plugins),
+    navModule,
+    homeModule,
+    themeModule,
+  ],
 });

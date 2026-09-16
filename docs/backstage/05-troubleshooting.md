@@ -27,6 +27,7 @@ inesperado) e siga a solução.
 | 8 | `CrashLoopBackOff` | 🔴 Alta |
 | 9 | Home não aparece na raiz (404) | 🔴 Alta |
 | 10 | YAML inválido (indentação, chaves duplicadas) | 🟡 Média |
+| 11 | Botões BUI azuis (ignoram o theme) | 🟡 Média |
 
 ---
 
@@ -696,6 +697,71 @@ Se aparecer algo, substitua tabs por 2 espaços.
 
 ---
 
+## 11. Botões primários BUI azuis (ignoram o theme)
+
+### Sintoma
+
+Você configurou um **theme customizado** (MUI), a sidebar mudou, os links
+mudaram, mas os **botões primários** (Create, Register, etc) **continuam
+azuis** (`#9CC9FF`).
+
+**No DevTools (F12 → Elements),** o botão tem classe `bui-ButtonLink` com
+`data-variant="primary"`.
+
+### Causa
+
+O **Backstage 1.54 tem 2 sistemas de UI** (MUI + BUI):
+
+- **MUI** → usava `UnifiedThemeProvider` (JS)
+- **BUI** → usa CSS vars (`--bui-*`)
+
+**O theme do MUI NÃO afeta o BUI.** Por isso os botões primários (que
+são BUI) continuam com as cores padrão.
+
+**Detalhe importante:** o `ButtonLink` do BUI usa **`--bui-bg-solid`**
+(não `--bui-accent-bg`) — e as vars precisam estar dentro de
+**`[data-theme-mode='light']`** (não `:root`).
+
+### Solução
+
+**Passo 1:** Adicione em `apps/backstage/packages/app/src/resilience-theme.css`:
+
+```css
+[data-theme-mode='light'] {
+  --bui-bg-solid: #FF9900;          /* Botões primários */
+  --bui-fg-solid: #ffffff;          /* Texto sobre botão */
+  --bui-bg-app: #f7fafc;
+}
+
+/* Ataque direto (garantia extra) */
+.bui-ButtonLink[data-variant='primary'],
+a[data-variant='primary'] {
+  background-color: #FF9900 !important;
+  color: #ffffff !important;
+}
+```
+
+**Passo 2:** Importe o CSS no `App.tsx`:
+
+```tsx
+import './resilience-theme.css';
+```
+
+**Passo 3:** Rebuild + push + deploy.
+
+### Prevenção
+
+**Sempre inspecionar o componente** (F12) antes de tentar customizar:
+
+- Classe `bui-*` → use **BUI** (CSS vars)
+- Classe `Mui*` → use **MUI** (theme JS)
+
+### Referência
+
+- [ADR-012](./03-decisoes.md#adr-012-backstage-tem-2-sistemas-de-ui-mui--bui)
+- [Doc oficial](https://backstage.io/docs/conf/user-interface/)
+- [Fase 8](./07-fase-8-polish.md)
+
 ## 📌 Resumo por severidade
 
 | Severidade | Erros | Ação |
@@ -703,6 +769,7 @@ Se aparecer algo, substitua tabs por 2 espaços.
 | 🔴 **Alta** | 3, 6, 7, 8, 9 | Bloqueiam uso. Resolver **agora**. |
 | 🟡 **Média** | 1, 2, 4, 10 | Funcionalidade parcial. Resolver logo. |
 | 🟢 **Baixa** | 5 | Polish. Pode esperar. |
+| 🟡 **Média** | 1, 2, 4, 10, 11 | Funcionalidade parcial. Resolver logo. |
 
 ## 🔗 Ver também
 

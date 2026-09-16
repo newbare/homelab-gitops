@@ -847,3 +847,107 @@ spec:
 - **Considerar IPv6** se a rede suportar
 - **Automatizar o `/etc/hosts`** (via Ansible ou script)
 
+---
+
+## 17. Customizar o tema do Backstage UI (BUI)
+
+O Backstage 1.54 tem **2 sistemas de UI** (MUI + BUI). Esta seção cobre o
+**BUI** (componentes `bui-*`). Para MUI, ver `themeModule.tsx`.
+
+### 17.1 Identificar se o componente é BUI
+
+**No browser (F12 → Elements):** se a classe começa com `bui-`, é BUI.
+
+**Exemplos:**
+
+- `bui-ButtonLink` (botões primários)
+- `bui-HeaderTitle` (títulos de header)
+- `bui-Card` (cards)
+
+### 17.2 Onde customizar
+
+**Arquivo:** `apps/backstage/packages/app/src/resilience-theme.css`
+
+**Estrutura:**
+
+```css
+/* 1. Variáveis (tema light) */
+[data-theme-mode='light'] {
+  --bui-bg-app: #f7fafc;
+  --bui-bg-solid: #FF9900;          /* Botões primários */
+  --bui-fg-solid: #ffffff;
+  --bui-fg-primary: #1a202c;
+  --bui-fg-secondary: #4a5568;
+  --bui-border-1: #e2e8f0;
+  --bui-border-2: #cbd5e0;
+}
+
+/* 2. Ataque direto ao componente (garantia extra) */
+.bui-ButtonLink[data-variant='primary'] {
+  background-color: #FF9900 !important;
+  color: #ffffff !important;
+}
+```
+
+### 17.3 Variáveis mais usadas
+
+| Variável | Uso |
+|---|---|
+| `--bui-bg-app` | Fundo geral do app |
+| `--bui-bg-solid` | **Botões primários** |
+| `--bui-fg-solid` | Texto sobre fundo sólido |
+| `--bui-fg-primary` | Texto principal |
+| `--bui-fg-secondary` | Texto secundário |
+| `--bui-border-1` | Bordas sutis |
+| `--bui-border-2` | Bordas principais |
+
+**Lista completa:** https://backstage.io/docs/conf/user-interface/
+
+### 17.4 Como testar
+
+**1. Editar o CSS.**
+
+**2. Rebuild:**
+
+```bash
+cd ~/mk8s/homelab-gitops/apps/backstage
+rm -rf packages/app/dist packages/backend/dist
+yarn build:backend
+docker build -t newbare/homelab-backstage:vN -f packages/backend/Dockerfile .
+docker push newbare/homelab-backstage:vN
+```
+
+**3. Atualizar `app.yaml`** (`tag: vN`).
+
+**4. Aplicar + sync + restart:**
+
+```bash
+cd ~/mk8s/homelab-gitops
+kubectl apply -f infrastructure/backstage/app.yaml
+argocd app sync backstage --replace
+kubectl -n backstage rollout restart deployment backstage
+```
+
+**5. Hard refresh** no browser (`Cmd+Shift+R`).
+
+**6. Verificar no DevTools:**
+
+```javascript
+console.log('--bui-bg-solid:', getComputedStyle(document.documentElement).getPropertyValue('--bui-bg-solid'));
+// Esperado: #FF9900
+```
+
+### 17.5 Troubleshooting
+
+**Se o BUI não muda:**
+
+1. **Confirma que está dentro de `[data-theme-mode='light']`** (não `:root`)
+2. **Confirma que a var correta** está sendo usada (ex: `--bui-bg-solid` pra botões)
+3. **Usa `!important`** no ataque direto
+4. **Verifica se o cache do browser** não está atrapalhando (hard refresh)
+
+### 17.6 Ver também
+
+- [ADR-012](./03-decisoes.md#adr-012-backstage-tem-2-sistemas-de-ui-mui--bui)
+- [Doc oficial](https://backstage.io/docs/conf/user-interface/)
+- [Fase 8 — Jornada](./07-fase-8-polish.md)

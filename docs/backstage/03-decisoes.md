@@ -661,6 +661,73 @@ spec:
 - **Considerar IPv6** se a rede suportar
 - **Automatizar o `/etc/hosts`** (via Ansible ou script)
 
+---
+
+## ADR-012: Backstage tem 2 sistemas de UI (MUI + BUI)
+
+**Status:** Aceita
+**Data:** 2026-09-16
+
+### Contexto
+
+Ao aplicar o theme Resilience Cloud, descobrimos que o **Backstage 1.54
+tem dois sistemas de UI coexistindo**:
+
+1. **MUI (legacy)** — a maioria dos plugins antigos
+2. **BUI (Backstage UI)** — componentes novos (`bui-*`)
+
+**Como identificar:**
+
+- Se o componente tem classe `Mui*` → **MUI**
+- Se o componente tem classe `bui-*` → **BUI**
+
+**Cada sistema tem theming diferente:**
+
+| Sistema | Theming | Onde |
+|---|---|---|
+| **MUI** | JS (`UnifiedThemeProvider`) | `themeModule.tsx` |
+| **BUI** | CSS vars (`--bui-*`) | `resilience-theme.css` |
+
+**O problema:** o theme do MUI **NÃO afeta os componentes do BUI**.
+Por isso os botões primários do BUI (Create, etc) continuaram azuis
+mesmo após configurar o MUI theme.
+
+### Decisão
+
+**Manter os 2 sistemas** e **sobrescrever ambos**:
+
+1. **MUI** via `themeModule.tsx` (já funcionando)
+2. **BUI** via `resilience-theme.css` com:
+   - Seletor `[data-theme-mode='light']` (não `:root`)
+   - Variáveis corretas (`--bui-bg-solid`, `--bui-fg-solid`)
+   - Ataque direto no `[data-variant='primary']`
+
+### Consequências
+
+**Positivas:**
+
+- **Cobertura total** dos componentes
+- **Futuro-proof** (quando BUI substituir MUI, já estamos prontos)
+- **Documentado** (próximo dev sabe onde mexer)
+
+**Negativas:**
+
+- **Complexidade:** manter 2 themes
+- **Debug mais lento:** precisa saber qual sistema usar
+- **Temporário:** o BUI vai substituir o MUI em algum momento
+
+### Alternativas consideradas
+
+1. **Migrar tudo pra BUI** — descartada: muitos plugins ainda usam MUI
+2. **Só MUI, ignorar BUI** — descartada: botões primários ficam azuis
+3. **Só BUI, ignorar MUI** — descartada: sidebar fica com cores padrão
+
+### Referência
+
+- [Doc oficial](https://backstage.io/docs/conf/user-interface/)
+- [Fase 8 — Jornada](./07-fase-8-polish.md)
+
+
 ## 📌 Resumo das decisões
 
 | ADR | Decisão | Impacto |
@@ -676,6 +743,7 @@ spec:
 | 009 | PostgreSQL interno (bitnamilegacy) | 🟡 Médio (custo/complexidade) |
 | 010 | Apenas `toolkit` e `world-clock` customizados | 🟢 Baixo (polish) |
 | 011 | MetalLB como LoadBalancer interno | 🟡 Médio (rede local) |
+| 012 | Backstage tem 2 sistemas de UI (MUI + BUI) | 🔴 Alto (arquitetura) |
 
 ## 🔗 Ver também
 

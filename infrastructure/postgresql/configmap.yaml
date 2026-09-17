@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgresql-init
+  namespace: postgresql
+data:
+  create-databases.sql: |
+    -- ============================================
+    -- Databases + Users para a stack Resilience Cloud
+    -- ============================================
+
+    -- Backstage
+    CREATE DATABASE backstage;
+    CREATE USER backstage WITH PASSWORD 'backstage-password';
+    GRANT ALL PRIVILEGES ON DATABASE backstage TO backstage;
+    ALTER DATABASE backstage OWNER TO backstage;
+
+    -- Keycloak
+    CREATE DATABASE keycloak;
+    CREATE USER keycloak WITH PASSWORD 'keycloak-password';
+    GRANT ALL PRIVILEGES ON DATABASE keycloak TO keycloak;
+    ALTER DATABASE keycloak OWNER TO keycloak;
+
+    -- Grafana (futuro)
+    CREATE DATABASE grafana;
+    CREATE USER grafana WITH PASSWORD 'grafana-password';
+    GRANT ALL PRIVILEGES ON DATABASE grafana TO grafana;
+    ALTER DATABASE grafana OWNER TO grafana;

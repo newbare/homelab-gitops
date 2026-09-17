@@ -1,5 +1,3 @@
-```markdown
-# Jornada — Fase 9 (Floci + Terraform + Lambda Serverless)
 
 Documentação da Fase 9 — provisionamento de **infraestrutura AWS local emulada**
 com **Floci** + **Terraform CAF** + **Lambda serverless** disparada por
@@ -240,6 +238,4 @@ cd ~/mk8s/homelab-gitops
 git branch --show-current
 git status
 wc -l docs/backstage/09-fase-9-floci-terraform-lambda.md
-```
-
 

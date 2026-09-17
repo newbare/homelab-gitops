@@ -3,8 +3,10 @@ kind: Application
 metadata:
   name: postgresql
   namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "5"
+  labels:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/part-of: resilience-cloud
+    app.kubernetes.io/component: database
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
@@ -14,11 +16,20 @@ spec:
     targetRevision: main
     path: infrastructure/postgresql
     directory:
-      include: '{configmap.yaml,service.yaml,statefulset.yaml}'
-      exclude: '{app.yaml,secret.yaml}'
+      include: "{configmap.yaml,service.yaml,statefulset.yaml}"
+      exclude: "{app.yaml,secret.yaml}"
   destination:
     server: https://kubernetes.default.svc
     namespace: postgresql
+  # Ignora diferenças em campos imutáveis/gerenciados pelo k8s
+  # Resolve o OutOfSync falso positivo do volumeClaimTemplates (StatefulSet)
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      jsonPointers:
+        - /spec/volumeClaimTemplates
+        - /spec/persistentVolumeClaimRetentionPolicy
+        - /status
   syncPolicy:
     automated:
       prune: true
@@ -26,3 +37,9 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

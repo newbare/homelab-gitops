@@ -24,6 +24,18 @@ spec:
             pullPolicy: Always
           extraEnvVarsSecrets:
             - backstage-github-token
+          extraEnvVars:
+            - name: POSTGRES_HOST
+              value: postgresql.postgresql.svc.cluster.local
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_USER
+              value: backstage
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-postgresql
+                  key: password
           appConfig:
             app:
               title: "Resilience Cloud Portal"
@@ -104,7 +116,6 @@ spec:
                           timeZone: Europe/Stockholm
                         - label: TYO
                           timeZone: Asia/Tokyo
-                # ⬇️ NOVO: Visit Tracking (habilita Most Visited + Recently Visited)
                 - api:home/visits: true
                 - app-root-element:home/visit-listener: true
             backend:
@@ -117,6 +128,14 @@ spec:
                 connect-src:
                   - "'self'"
                   - "https:"
+              database:
+                client: pg
+                connection:
+                  host: ${POSTGRES_HOST}
+                  port: ${POSTGRES_PORT}
+                  user: ${POSTGRES_USER}
+                  password: ${POSTGRES_PASSWORD}
+                  database: backstage
             auth:
               environment: production
               providers:
@@ -129,9 +148,7 @@ spec:
         ingress:
           enabled: false
         postgresql:
-          enabled: true
-          auth:
-            password: "backstage-lab-password"
+          enabled: false
         service:
           type: ClusterIP
   destination:

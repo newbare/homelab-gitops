@@ -1,0 +1,27 @@
+# Terraform — ignorar arquivos gerados
+
+# State files (NUNCA commitar)
+env/*/terraform.tfstate
+env/*/terraform.tfstate.backup
+
+# Cache do Terraform
+.terraform/
+.terraform.tfstate.lock.info
+
+# Planos
+*.tfplan
+*.tfplan.json
+
+# Variáveis com segredos
+*.auto.tfvars
+secrets.tfvars
+
+# Lambda build artifacts
+modules/lambda/src/*.zip
+modules/lambda/src/package/
+**/__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+#.terraform.lock.hcl

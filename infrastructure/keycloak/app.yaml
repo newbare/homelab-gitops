@@ -1,0 +1,74 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: keycloak
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "8"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://charts.bitnami.com/bitnami
+    chart: keycloak
+    targetRevision: 24.4.0
+    helm:
+      releaseName: keycloak
+      values: |
+        global:
+          security:
+            allowInsecureImages: true
+
+        image:
+          registry: docker.io
+          repository: bitnamilegacy/keycloak
+          tag: 26.0.7-debian-12-r0
+
+        auth:
+          adminUser: admin
+          existingSecret: keycloak-admin
+          existingSecretKey: admin-password
+
+        production: true
+        proxy: edge
+
+        service:
+          type: ClusterIP
+          ports:
+            http: 80
+
+        ingress:
+          enabled: false
+
+        postgresql:
+          enabled: false
+
+        externalDatabase:
+          host: postgresql.postgresql.svc.cluster.local
+          port: 5432
+          user: keycloak
+          database: keycloak
+          existingSecret: keycloak-postgresql
+          existingSecretPasswordKey: password
+
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+
+        metrics:
+          enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: keycloak
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

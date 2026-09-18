@@ -29,6 +29,9 @@
 
 ## 🎯 Fases de Implementação
 
+> 📘 **Visão geral do projeto** (objetivo, arquitetura, checklist e cronograma):
+> [`docs/00-visao-geral.md`](./docs/00-visao-geral.md)
+
 | Fase | O que foi feito | Documentação |
 |------|-----------------|--------------|
 | 1 | MicroK8s 1.35.6 + dns + hostpath-storage + rbac | (este README) |
@@ -37,6 +40,11 @@
 | 4 | ArgoCD v3.5.2 via Helm + Ingress + Application metallb | `infrastructure/argocd/README.md` |
 | 5 | Istio 1.30.4 (base + istiod + gateway) + Bookinfo + sidecar injection | `infrastructure/istio/README.md` |
 | 6 | Observabilidade: Prometheus, Grafana, Kiali, Jaeger, metrics-server, cert-manager | `infrastructure/observability/README.md` |
+| 7 | Backstage customizado (imagem própria + plugins search/home/scaffolder/notifications) | `docs/backstage/` |
+| 8 | Polish do Backstage | `docs/backstage/07-fase-8-polish.md` |
+| 9 | Floci + Terraform CAF + Lambda (IAM + SSO + catalog-info) — PR #3 | `docs/backstage/09-fase-9-floci-terraform-lambda.md` |
+| 9c | Keycloak (Bitnami 24.4.0) — PR #4 | `infrastructure/keycloak/README.md` |
+| 9d | PostgreSQL compartilhado (StatefulSet + ConfigMap + Service) | `infrastructure/postgresql/` |
 
 ---
 

@@ -39,7 +39,14 @@ spec:
             http: 80
 
         ingress:
-          enabled: false
+          enabled: true
+          ingressClassName: nginx
+          hostname: keycloak.local
+          hostnameStrict: true
+          pathType: Prefix
+          tls: true
+          annotations:
+            cert-manager.io/cluster-issuer: selfsigned-issuer
 
         postgresql:
           enabled: false

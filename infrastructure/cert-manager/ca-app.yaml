@@ -39,7 +39,7 @@ spec:
     targetRevision: main
     path: infrastructure/cert-manager
     directory:
-      include: 'ca.yaml'
+      include: "ca.yaml"
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager

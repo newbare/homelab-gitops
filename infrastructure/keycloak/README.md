@@ -53,6 +53,47 @@ manifestos renderizados. Isso é intencional, pois fixa a versão do chart
 > Por isso `helm list -n keycloak` retorna **vazio** — e isso **não é problema**.
 > Não existem `helm upgrade` nem `helm rollback` aqui: o ciclo de vida é do ArgoCD.
 
+### ⚠️ Mudou este `app.yaml`? Um `git push` NÃO basta
+
+Esta é a pegadinha número um deste componente.
+
+O ArgoCD sincroniza o **chart do Bitnami** com os valores que estão **dentro do objeto
+Application no cluster**. Ele **não observa** o arquivo `infrastructure/keycloak/app.yaml`
+do repositório — quem coloca esse arquivo no cluster é um `kubectl apply`.
+
+    editar app.yaml → git commit/push      →  NADA acontece
+    kubectl apply -f infrastructure/keycloak/app.yaml  →  aí sim
+
+**Como desconfiar que você caiu nisso:** numa Application baseada em chart, o
+`status.sync.revision` é a **versão do chart**, não um commit:
+
+    kubectl -n argocd get application keycloak \
+      -o jsonpath='{.status.sync.revision}{"\n"}'
+    # 24.4.0
+
+E `Synced` quer dizer *"igual ao que o ArgoCD observou"* — **não** *"igual ao GitHub agora"*.
+Um `Synced` verde pode estar desatualizado.
+
+**Conferir se o objeto no cluster tem os valores novos:**
+
+    kubectl -n argocd get application keycloak \
+      -o jsonpath='{.spec.source.helm.values}' | grep -A 9 'ingress:'
+    # se aparecer "enabled: false", o cluster está com a versão antiga
+
+**Aplicar:**
+
+    kubectl apply -f infrastructure/keycloak/app.yaml
+    # esperado: application.argoproj.io/keycloak configured
+
+Depois do `apply`, o ArgoCD detecta a mudança de values e sincroniza sozinho.
+
+> 📌 Vale para **todas** as Applications baseadas em `chart` (`keycloak`, `istio`,
+> `backstage`, `kube-prometheus-stack`...). As baseadas em `path` do Git (como
+> `postgresql` e `metallb`) **são** atualizadas pelo próprio commit.
+>
+> **Backlog:** um "App of Apps" — uma Application que gerencia `infrastructure/` —
+> elimina essa exceção e faz o `git push` bastar para tudo.
+
 ---
 
 ## Recursos criados
@@ -76,14 +117,34 @@ manifestos renderizados. Isso é intencional, pois fixa a versão do chart
 
 ## Acesso
 
-**Não há Ingress.** O `app.yaml` define `ingress.enabled: false`, então o Keycloak é
-acessível **apenas de dentro do cluster**. O acesso externo é por port-forward:
+O Keycloak é exposto pelo **Ingress do próprio chart** (nginx + TLS via cert-manager):
 
-    kubectl -n keycloak port-forward svc/keycloak 8080:80
+| | |
+|---|---|
+| **URL** | `https://keycloak.local` |
+| **Console admin** | `https://keycloak.local/admin` |
+| **Realms** | `master` (onde vive o admin) · `resilience` (onde vivem os usuários) |
 
-Depois, no navegador: `http://localhost:8080` (console admin em `/admin`).
+O nome precisa resolver no seu Mac — uma linha no `/etc/hosts`:
 
-Para ler a senha do admin:
+    192.168.99.200  keycloak.local
+
+Para conferir:
+
+    grep keycloak.local /etc/hosts
+    # esperado: 192.168.99.200  keycloak.local
+
+> ⚠️ **O navegador vai avisar "Não seguro".** O certificado é autoassinado
+> (`ClusterIssuer selfsigned-issuer`), então nenhuma máquina confia nele por padrão.
+> É esperado no laboratório. Como resolver está em
+> [`docs/certificados/`](../../docs/certificados/).
+
+> 💡 **Não é mais necessário `kubectl port-forward`.** Antes o Keycloak não tinha
+> Ingress, e o túnel caía sozinho com frequência (`lost connection to pod`). Hoje o
+> acesso é direto pelo hostname. Este é o motivo pelo qual `hostnameStrict: true`
+> está ativo: ele fixa a URL pública que o Keycloak anuncia no discovery OIDC.
+
+### Leitura da senha do admin
 
     kubectl -n keycloak get secret keycloak-admin \
       -o jsonpath='{.data.admin-password}' | base64 -d

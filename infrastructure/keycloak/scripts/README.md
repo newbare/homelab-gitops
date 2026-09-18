@@ -41,46 +41,69 @@ Obrigatórias: username, email, role. Opcionais: firstName, lastName.
 
 | Variável                 | Descrição                     | Exemplo                                              |
 |--------------------------|-------------------------------|------------------------------------------------------|
-| `KEYCLOAK_URL`           | URL base do Keycloak          | `http://localhost:8080`                              |
+| `KEYCLOAK_URL`           | URL base do Keycloak          | `https://keycloak.local`                             |
 | `KEYCLOAK_ADMIN_USER`    | Usuário admin do realm master | `admin`                                              |
 | `KEYCLOAK_ADMIN_PASS`    | Senha do admin                | `********`                                           |
 | `KEYCLOAK_REALM`         | Realm a ser provisionado      | `resilience`                                         |
 | `KEYCLOAK_CLIENT_ID`     | Client ID (ex: Backstage)     | `backstage`                                          |
 | `KEYCLOAK_CLIENT_SECRET` | Client secret (confidential)  | `********`                                           |
-| `KEYCLOAK_REDIRECT_URI`  | Redirect URI do client        | `http://localhost:3000/api/auth/oidc/handler/frame`  |
-| `KEYCLOAK_WEB_ORIGIN`    | Web origin do client          | `http://localhost:3000`                              |
+| `KEYCLOAK_REDIRECT_URI`  | Redirect URI do client        | `https://backstage.local/api/auth/oidc/handler/frame` |
+| `KEYCLOAK_WEB_ORIGIN`    | Web origin do client          | `https://backstage.local`                            |
+| `REQUESTS_CA_BUNDLE`     | Certificado do Keycloak (TLS autoassinado) | `/tmp/keycloak-ca.crt`                   |
 | `KEYCLOAK_TEMP_PASSWORD` | Senha temporária dos usuários | `Mudar@123`                                          |
 
 ## Uso
 
-### 1. Port-forward do Keycloak (pré-requisito)
+### 1. Pré-requisitos
 
-O Keycloak **não tem Ingress** — é acessível apenas de dentro do cluster. Para rodar
-o provisioner a partir da sua máquina, exponha o Service localmente:
+**a) O nome do Keycloak precisa resolver no seu Mac** (linha no `/etc/hosts`):
 
-    kubectl -n keycloak port-forward svc/keycloak 8080:80
+    grep keycloak.local /etc/hosts
+    # esperado: 192.168.99.200  keycloak.local
 
-Deixe esse terminal aberto e use outro para os próximos passos.
+> 💡 **Não é mais preciso `kubectl port-forward`.** O Keycloak tem Ingress em
+> `https://keycloak.local`. Antes o túnel era obrigatório e caía com frequência
+> (`lost connection to pod`), interrompendo o provisionamento no meio.
+
+**b) O certificado é autoassinado — o Python precisa confiar nele.**
+
+O provisioner usa a biblioteca `requests`, que **valida** o certificado por padrão.
+Como o `ClusterIssuer` é `selfsigned-issuer`, a validação falha. Extraia o certificado
+do cluster e aponte o `requests` para ele:
+
+    kubectl -n keycloak get secret keycloak.local-tls \
+      -o jsonpath='{.data.tls\.crt}' | base64 -d > /tmp/keycloak-ca.crt
+
+    export REQUESTS_CA_BUNDLE=/tmp/keycloak-ca.crt
+
+> ⚠️ **Sem essa variável o erro será de SSL, não de credencial.** Se aparecer
+> `SSLError: certificate verify failed`, é isto — não é senha errada nem script quebrado.
+>
+> Detalhes sobre certificados no laboratório: [`docs/certificados/`](../../../docs/certificados/).
 
 ### 2. Exportar as variáveis
 
-    export KEYCLOAK_URL="http://localhost:8080"
+    export KEYCLOAK_URL="https://keycloak.local"
     export KEYCLOAK_ADMIN_USER="admin"
     export KEYCLOAK_ADMIN_PASS="$(kubectl -n keycloak get secret keycloak-admin \
       -o jsonpath='{.data.admin-password}' | base64 -d)"
     export KEYCLOAK_REALM="resilience"
     export KEYCLOAK_CLIENT_ID="backstage"
     export KEYCLOAK_CLIENT_SECRET="$(openssl rand -hex 32)"
-    export KEYCLOAK_REDIRECT_URI="http://localhost:3000/api/auth/oidc/handler/frame"
-    export KEYCLOAK_WEB_ORIGIN="http://localhost:3000"
+    export KEYCLOAK_REDIRECT_URI="https://backstage.local/api/auth/oidc/handler/frame"
+    export KEYCLOAK_WEB_ORIGIN="https://backstage.local"
     export KEYCLOAK_TEMP_PASSWORD="Mudar@123"
 
 > ⚠️ O Secret chama-se **`keycloak-admin`** (chave `admin-password`).
 > Não existe Secret chamado `keycloak` — um comando com esse nome falha.
 
-> 💡 Guarde o `KEYCLOAK_CLIENT_SECRET` gerado: ele será usado pelo Backstage.
-> Note que ele **muda** a cada execução do `openssl rand` — guarde o valor que
-> foi realmente aplicado.
+> ⚠️ **O `KEYCLOAK_CLIENT_SECRET` gerado aqui precisa chegar ao Keycloak** (é o que o
+> `make run` faz, via `ensure_client`). Ele **muda** a cada `openssl rand` — grave-o
+> no Secret do Backstage logo depois (ver seção Segurança).
+
+> ⚠️ O `KEYCLOAK_REDIRECT_URI` precisa bater com o `baseUrl` real do Backstage.
+> Hoje é `https://backstage.local`. Um valor de `localhost:3000` (padrão de
+> desenvolvimento) **quebra** o login do Backstage.
 
 ### 3. Rodar
 

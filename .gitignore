@@ -9,6 +9,9 @@ istio-*/
 # Artefatos locais do laboratório
 backstage-tls.crt
 
+# Log de conversa / notas locais de sessão (não versionar)
+/historico.md
+
 # Node
 node_modules/
 .vscode/

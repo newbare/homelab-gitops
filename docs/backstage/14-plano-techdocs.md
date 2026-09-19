@@ -216,6 +216,55 @@ share a single repo, and likely a single TechDoc location"* — e evita 12 build
 mesmo site. A opção (b) só faria sentido se cada componente tivesse documentação
 própria, o que não é o caso.
 
+### 6.3 Credenciais do publisher — a decisão e as fontes
+
+**Decisão: variáveis de ambiente, injetadas pelo Secret `backstage-techdocs-s3`,
+criado fora do Git.** Não é preferência de estilo — é o que as fontes mandam.
+
+Por que **não** literal no `app.yaml`:
+
+- A doc do Backstage marca variável de ambiente como **(Recommended)** na
+  [seção 4a](https://backstage.io/docs/features/techdocs/using-cloud-storage).
+  O `extraEnvVarsSecrets` injeta exatamente essas variáveis: o Secret é o *canal*
+  para o caminho recomendado, não um desvio dele.
+- A mesma página manda seguir as
+  [boas práticas de access keys da AWS](https://docs.aws.amazon.com/general/latest/gr/aws-access-keys-best-practices.html),
+  onde está escrito:
+  > **Do NOT** put access keys or credential information in your application files.
+  > **Do NOT** include files that contain access keys or credential information in
+  > your project area.
+
+  O `app.yaml` é um arquivo do projeto, num repositório público. A opção "literal"
+  contraria a doc que a própria página do Backstage cita.
+- Coerência: no mesmo dia `access_key`/`secret_key` saíram do provider Terraform
+  pelo mesmo motivo. Reintroduzir no `app.yaml` seria o mesmo erro na camada vizinha.
+
+O que a doc considera **ideal** — e aqui é impossível:
+
+> As a best practice, use temporary security credentials (such as IAM roles)
+> instead of creating long-term credentials like access keys.
+
+No Floci não existe federação para o Pod assumir role (não há EKS nem IMDS), então
+a chave estática é inevitável **no emulador**. Em AWS real o Secret deixa de existir.
+
+O gap de compliance, agora endereçado no Terraform:
+
+| Item | Onde | Estado |
+|---|---|---|
+| As 5 ações do mínimo documentado (`ListBucket`, `GetObject`, `PutObject`, `DeleteObject`, `DeleteObjectVersion`) | `modules/iam` → `aws_iam_role_policy.techdocs_publisher` | ✅ aplicada |
+| Escopo só no bucket do TechDocs (`arn:aws:s3:::resilience-techdocs` e `/*`) | idem | ✅ verificado por CLI |
+| Role com trust de **EKS Pod Identity** (`pods.eks.amazonaws.com`) | `modules/iam` → `aws_iam_role.techdocs_publisher` | ✅ aplicada |
+| `aws_eks_pod_identity_association` | — | ⏳ exige cluster EKS real |
+| Alarme de `AccessDenied` + CloudTrail | — | ⏳ não existe no emulador |
+
+`s3:DeleteObjectVersion` não é detalhe: ele está na doc por causa de
+re-publicação e aqui é ainda mais necessário **porque o bucket tem versionamento
+ligado** (§6.1/T4).
+
+⚠️ Enquanto a associação não existir, esse papel **não é usado por ninguém**:
+quem autentica hoje é a chave do Secret. É preparação para a virada para AWS real
+— e isso está dito no próprio código, não só aqui.
+
 ---
 
 ## 7. Riscos conhecidos

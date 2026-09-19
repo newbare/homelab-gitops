@@ -20,7 +20,7 @@ spec:
           image:
             registry: docker.io
             repository: newbare/homelab-backstage
-            tag: v20
+            tag: v27
             pullPolicy: Always
 
           # Segredos que viram variáveis de ambiente no Pod:
@@ -100,6 +100,40 @@ spec:
               baseUrl: https://backstage.local
               packages: all
               extensions:
+                # 🔴 SEM ESTA ENTRADA A TRADUÇÃO NÃO APARECE.
+                #
+                # O `TranslationResource` de pt é REGISTRADO pelo módulo do app
+                # (packages/app/src/modules/translations), mas quem decide qual
+                # idioma o Backstage USA é a API `appLanguageApiRef` — e o default
+                # dela é `en`.
+                #
+                # Registrado ≠ ativo: sem `defaultLanguage: pt`, os resources
+                # ficam carregados e nunca consultados.
+                #
+                # O id segue o padrão <kind>:<pluginId>[/<name>], o mesmo das
+                # outras entradas aqui (`api:home/visits`, `page:home`).
+                - api:app/app-language:
+                    config:
+                      # 🔒 SÓ português — o seletor de idioma foi REMOVIDO de propósito.
+                      #
+                      # Motivo: as camadas que traduzem FORA do i18n são português
+                      # FIXO e não respondem à troca de idioma:
+                      #   1. modules/nav/pageTitles.ts  (títulos de menu/página/abas)
+                      #   2. modules/nav/Sidebar.tsx    (rótulos dos grupos + Notificações)
+                      #   3. .yarn/patches/*.patch      (3 patches de vendor)
+                      #
+                      # Com `en` disponível, escolher inglês produzia uma tela
+                      # MISTA: o i18n voltava para inglês e o resto continuava em
+                      # português. Melhor não oferecer a opção do que oferecer uma
+                      # quebrada.
+                      #
+                      # Com UMA só língua declarada, o Backstage esconde o seletor
+                      # em Settings — comportamento documentado em
+                      # https://backstage.io/docs/frontend-system/building-plugins/internationalization
+                      # ("the language switcher ... only appears once you declare
+                      #  two or more supported languages").
+                      defaultLanguage: pt
+                      availableLanguages: [pt]
                 - page:home:
                     config:
                       path: /

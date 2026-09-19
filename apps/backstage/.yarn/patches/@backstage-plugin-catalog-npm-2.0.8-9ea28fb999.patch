@@ -1,0 +1,32 @@
+diff --git a/dist/components/CatalogTable/CatalogTable.esm.js b/dist/components/CatalogTable/CatalogTable.esm.js
+index 5fe50283c9f5b80edd50f53ac8bdd537077cfa92..80633755471edc92be786f8c59b7f467816bc784 100644
+--- a/dist/components/CatalogTable/CatalogTable.esm.js
++++ b/dist/components/CatalogTable/CatalogTable.esm.js
+@@ -118,7 +118,26 @@ const CatalogTable = (props) => {
+   const titlePreamble = capitalize(
+     filters.user?.value ?? t("catalogTable.allFilters")
+   );
+-  const titleBase = props.title || [titlePreamble, currentType, pluralize(displayedKindLabel)].filter((s) => s).join(" ");
++  // PATCH (homelab-gitops): o upstream monta o título com o VALOR CRU do filtro
++  // de dono (`filters.user.value` = "all") e com o plural em inglês do kind.
++  // Como nada disso passa pelo i18n, o título saía "All components (0)" mesmo
++  // com todas as chaves traduzidas. Aqui montamos a frase em português, com
++  // concordância de gênero, e caímos no comportamento ORIGINAL quando o kind
++  // não está no mapa ou quando o filtro de dono não é "all".
++  const ptKindTitles = {
++    component: "Todos os componentes",
++    api: "Todas as APIs",
++    system: "Todos os sistemas",
++    domain: "Todos os domínios",
++    group: "Todos os grupos",
++    user: "Todos os usuários",
++    resource: "Todos os recursos",
++    template: "Todos os templates",
++    location: "Todas as locations"
++  };
++  const ptKindKey = String(displayedKindLabel || "").toLocaleLowerCase("en-US").replace(/s$/, "");
++  const ptTitle = filters.user?.value === "all" && !currentType ? ptKindTitles[ptKindKey] : void 0;
++  const titleBase = props.title || ptTitle || [titlePreamble, currentType, pluralize(displayedKindLabel)].filter((s) => s).join(" ");
+   const title = props.title ? titleBase : /* @__PURE__ */ jsxs(
+     "span",
+     {

@@ -1,0 +1,95 @@
+{
+  "pattern": "messages/{id}.{lang}.json",
+  "refs": {
+    "core-components": {
+      "package": "@backstage/core-components",
+      "exportPath": "./alpha",
+      "exportName": "coreComponentsTranslationRef"
+    },
+    "api-docs": {
+      "package": "@backstage/plugin-api-docs",
+      "exportPath": "./alpha",
+      "exportName": "apiDocsTranslationRef"
+    },
+    "catalog": {
+      "package": "@backstage/plugin-catalog",
+      "exportPath": "./alpha",
+      "exportName": "catalogTranslationRef"
+    },
+    "catalog-react": {
+      "package": "@backstage/plugin-catalog-react",
+      "exportPath": "./alpha",
+      "exportName": "catalogReactTranslationRef"
+    },
+    "search-react": {
+      "package": "@backstage/plugin-search-react",
+      "exportPath": "./alpha",
+      "exportName": "searchReactTranslationRef"
+    },
+    "user-settings": {
+      "package": "@backstage/plugin-user-settings",
+      "exportPath": "./alpha",
+      "exportName": "userSettingsTranslationRef"
+    },
+    "catalog-graph": {
+      "package": "@backstage/plugin-catalog-graph",
+      "exportPath": "./alpha",
+      "exportName": "catalogGraphTranslationRef"
+    },
+    "catalog-import": {
+      "package": "@backstage/plugin-catalog-import",
+      "exportPath": "./alpha",
+      "exportName": "catalogImportTranslationRef"
+    },
+    "home": {
+      "package": "@backstage/plugin-home",
+      "exportPath": "./alpha",
+      "exportName": "homeTranslationRef"
+    },
+    "home-react": {
+      "package": "@backstage/plugin-home-react",
+      "exportPath": "./alpha",
+      "exportName": "homeReactTranslationRef"
+    },
+    "kubernetes": {
+      "package": "@backstage/plugin-kubernetes",
+      "exportPath": "./alpha",
+      "exportName": "kubernetesTranslationRef"
+    },
+    "kubernetes-react": {
+      "package": "@backstage/plugin-kubernetes-react",
+      "exportPath": "./alpha",
+      "exportName": "kubernetesReactTranslationRef"
+    },
+    "plugin.notifications": {
+      "package": "@backstage/plugin-notifications",
+      "exportPath": "./alpha",
+      "exportName": "notificationsTranslationRef"
+    },
+    "org": {
+      "package": "@backstage/plugin-org",
+      "exportPath": "./alpha",
+      "exportName": "orgTranslationRef"
+    },
+    "scaffolder": {
+      "package": "@backstage/plugin-scaffolder",
+      "exportPath": "./alpha",
+      "exportName": "scaffolderTranslationRef"
+    },
+    "scaffolder-react": {
+      "package": "@backstage/plugin-scaffolder-react",
+      "exportPath": "./alpha",
+      "exportName": "scaffolderReactTranslationRef"
+    },
+    "search": {
+      "package": "@backstage/plugin-search",
+      "exportPath": "./alpha",
+      "exportName": "searchTranslationRef"
+    },
+    "techdocs": {
+      "package": "@backstage/plugin-techdocs",
+      "exportPath": "./alpha",
+      "exportName": "techdocsTranslationRef"
+    }
+  }
+}

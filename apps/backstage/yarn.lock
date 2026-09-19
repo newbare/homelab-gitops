@@ -3059,7 +3059,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@backstage/plugin-catalog@npm:^2.0.8":
+"@backstage/plugin-catalog@npm:2.0.8":
   version: 2.0.8
   resolution: "@backstage/plugin-catalog@npm:2.0.8"
   dependencies:
@@ -3108,6 +3108,55 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@backstage/plugin-catalog@patch:@backstage/plugin-catalog@npm%3A2.0.8#~/.yarn/patches/@backstage-plugin-catalog-npm-2.0.8-9ea28fb999.patch":
+  version: 2.0.8
+  resolution: "@backstage/plugin-catalog@patch:@backstage/plugin-catalog@npm%3A2.0.8#~/.yarn/patches/@backstage-plugin-catalog-npm-2.0.8-9ea28fb999.patch::version=2.0.8&hash=0194e9"
+  dependencies:
+    "@backstage/catalog-client": "npm:^1.16.1"
+    "@backstage/catalog-model": "npm:^1.10.0"
+    "@backstage/core-compat-api": "npm:^0.5.14"
+    "@backstage/core-components": "npm:^0.18.13"
+    "@backstage/core-plugin-api": "npm:^1.12.9"
+    "@backstage/errors": "npm:^1.3.1"
+    "@backstage/frontend-plugin-api": "npm:^0.18.0"
+    "@backstage/integration-react": "npm:^1.2.21"
+    "@backstage/plugin-catalog-common": "npm:^1.1.10"
+    "@backstage/plugin-catalog-react": "npm:^3.2.1"
+    "@backstage/plugin-permission-react": "npm:^0.5.4"
+    "@backstage/plugin-scaffolder-common": "npm:^2.2.2"
+    "@backstage/plugin-search-common": "npm:^1.2.24"
+    "@backstage/plugin-search-react": "npm:^1.11.7"
+    "@backstage/plugin-techdocs-common": "npm:^0.1.1"
+    "@backstage/plugin-techdocs-react": "npm:^1.3.14"
+    "@backstage/types": "npm:^1.2.2"
+    "@backstage/ui": "npm:^0.17.1"
+    "@backstage/version-bridge": "npm:^1.0.12"
+    "@material-ui/core": "npm:^4.12.2"
+    "@material-ui/icons": "npm:^4.9.1"
+    "@material-ui/lab": "npm:4.0.0-alpha.61"
+    "@mui/utils": "npm:^5.14.15"
+    "@remixicon/react": "npm:^4.6.0"
+    classnames: "npm:^2.3.1"
+    csv-stringify: "npm:^5.6.5"
+    dataloader: "npm:^2.0.0"
+    lodash: "npm:^4.17.21"
+    pluralize: "npm:^8.0.0"
+    react-helmet: "npm:6.1.0"
+    react-use: "npm:^17.2.4"
+    zen-observable: "npm:^0.10.0"
+    zod: "npm:^4.0.0"
+  peerDependencies:
+    "@types/react": ^17.0.0 || ^18.0.0
+    react: ^17.0.0 || ^18.0.0
+    react-dom: ^17.0.0 || ^18.0.0
+    react-router-dom: ^6.30.2
+  peerDependenciesMeta:
+    "@types/react":
+      optional: true
+  checksum: 10c0/1688469c7f3a89af85db56eba76e424bafac66e8712d27bc2847cf8cd3ee0d7fec466e71ace1c162d58c5eff76bd8d9c1f4812d958f77582e472e7fc7721b5d3
+  languageName: node
+  linkType: hard
+
 "@backstage/plugin-events-node@npm:^0.4.25":
   version: 0.4.25
   resolution: "@backstage/plugin-events-node@npm:0.4.25"
@@ -3148,7 +3197,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@backstage/plugin-home@npm:^0.9.9":
+"@backstage/plugin-home@npm:0.9.9":
   version: 0.9.9
   resolution: "@backstage/plugin-home@npm:0.9.9"
   dependencies:
@@ -3185,6 +3234,46 @@ __metadata:
     "@types/react":
       optional: true
   checksum: 10c0/521490949dec0948a583a984476212527bf7c972aa43cea778f9482ed35b5ab8707fa669305d481e870f23189471dc4974f46f010097b1ada5b791d644bb93ef
+  languageName: node
+  linkType: hard
+
+"@backstage/plugin-home@patch:@backstage/plugin-home@npm%3A0.9.9#~/.yarn/patches/@backstage-plugin-home-npm-0.9.9-001c9fa952.patch":
+  version: 0.9.9
+  resolution: "@backstage/plugin-home@patch:@backstage/plugin-home@npm%3A0.9.9#~/.yarn/patches/@backstage-plugin-home-npm-0.9.9-001c9fa952.patch::version=0.9.9&hash=481f79"
+  dependencies:
+    "@backstage/catalog-client": "npm:^1.16.1"
+    "@backstage/catalog-model": "npm:^1.10.0"
+    "@backstage/config": "npm:^1.3.8"
+    "@backstage/core-app-api": "npm:^1.20.4"
+    "@backstage/core-compat-api": "npm:^0.5.14"
+    "@backstage/core-components": "npm:^0.18.13"
+    "@backstage/core-plugin-api": "npm:^1.12.9"
+    "@backstage/frontend-plugin-api": "npm:^0.18.0"
+    "@backstage/plugin-catalog-react": "npm:^3.2.1"
+    "@backstage/plugin-home-react": "npm:^0.1.41"
+    "@backstage/theme": "npm:^0.7.3"
+    "@material-ui/core": "npm:^4.12.2"
+    "@material-ui/icons": "npm:^4.9.1"
+    "@material-ui/lab": "npm:4.0.0-alpha.61"
+    "@rjsf/core": "npm:5.24.13"
+    "@rjsf/material-ui": "npm:5.24.13"
+    "@rjsf/utils": "npm:5.24.13"
+    "@rjsf/validator-ajv8": "npm:5.24.13"
+    lodash: "npm:^4.17.21"
+    luxon: "npm:^3.4.3"
+    react-grid-layout: "npm:1.3.4"
+    react-resizable: "npm:^3.0.4"
+    react-use: "npm:^17.2.4"
+    zod: "npm:^3.25.76 || ^4.0.0"
+  peerDependencies:
+    "@types/react": ^17.0.0 || ^18.0.0
+    react: ^17.0.0 || ^18.0.0
+    react-dom: ^17.0.0 || ^18.0.0
+    react-router-dom: ^6.30.2
+  peerDependenciesMeta:
+    "@types/react":
+      optional: true
+  checksum: 10c0/7517ccddba3810d673e3d659e06de47827142828efafd16f6621e4b20bb52f83911bc9a86cbd5aac202d4e3cb75de17e8d89ff5496d9a6a7fd4c0ed0d35bb1a3
   languageName: node
   linkType: hard
 
@@ -3709,7 +3798,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@backstage/plugin-scaffolder-react@npm:^2.0.3":
+"@backstage/plugin-scaffolder-react@npm:2.0.3":
   version: 2.0.3
   resolution: "@backstage/plugin-scaffolder-react@npm:2.0.3"
   dependencies:
@@ -3764,6 +3853,64 @@ __metadata:
     "@types/react":
       optional: true
   checksum: 10c0/424d7724d166fde2c88eb0fab2c7f29fb3729ee6a271da0c3795c7e50ff528bb2d0b1f4e2946fbf1f7ac42152646b0928ae4b400e0cec2c66b8fe9542c30ac55
+  languageName: node
+  linkType: hard
+
+"@backstage/plugin-scaffolder-react@patch:@backstage/plugin-scaffolder-react@npm%3A2.0.3#~/.yarn/patches/@backstage-plugin-scaffolder-react-npm-2.0.3-ed37c8cda4.patch":
+  version: 2.0.3
+  resolution: "@backstage/plugin-scaffolder-react@patch:@backstage/plugin-scaffolder-react@npm%3A2.0.3#~/.yarn/patches/@backstage-plugin-scaffolder-react-npm-2.0.3-ed37c8cda4.patch::version=2.0.3&hash=06d1cc"
+  dependencies:
+    "@backstage/catalog-client": "npm:^1.16.1"
+    "@backstage/catalog-model": "npm:^1.10.0"
+    "@backstage/core-components": "npm:^0.18.13"
+    "@backstage/core-plugin-api": "npm:^1.12.9"
+    "@backstage/frontend-plugin-api": "npm:^0.18.0"
+    "@backstage/plugin-catalog-react": "npm:^3.2.1"
+    "@backstage/plugin-permission-react": "npm:^0.5.4"
+    "@backstage/plugin-scaffolder-common": "npm:^2.2.2"
+    "@backstage/theme": "npm:^0.7.3"
+    "@backstage/types": "npm:^1.2.2"
+    "@backstage/ui": "npm:^0.17.1"
+    "@backstage/version-bridge": "npm:^1.0.12"
+    "@material-ui/core": "npm:^4.12.2"
+    "@material-ui/icons": "npm:^4.9.1"
+    "@material-ui/lab": "npm:4.0.0-alpha.61"
+    "@react-hookz/web": "npm:^24.0.0"
+    "@remixicon/react": "npm:^4.6.0"
+    "@rjsf/core": "npm:5.24.13"
+    "@rjsf/material-ui": "npm:5.24.13"
+    "@rjsf/utils": "npm:5.24.13"
+    "@rjsf/validator-ajv8": "npm:5.24.13"
+    "@types/json-schema": "npm:^7.0.9"
+    ajv: "npm:^8.0.1"
+    ajv-errors: "npm:^3.0.0"
+    classnames: "npm:^2.2.6"
+    flatted: "npm:^3.4.2"
+    humanize-duration: "npm:^3.25.1"
+    immer: "npm:^9.0.6"
+    json-schema-library: "npm:^9.0.0"
+    lodash: "npm:^4.17.21"
+    luxon: "npm:^3.0.0"
+    qs: "npm:^6.15.2"
+    react-aria-components: "npm:^1.14.0"
+    react-use: "npm:^17.2.4"
+    use-immer: "npm:^0.11.0"
+    zen-observable: "npm:^0.10.0"
+    zod: "npm:^3.25.76 || ^4.0.0"
+    zod-to-json-schema: "npm:^3.25.1"
+  peerDependencies:
+    "@backstage/frontend-test-utils": ^0.6.3
+    "@types/react": ^17.0.0 || ^18.0.0
+    react: ^17.0.0 || ^18.0.0
+    react-dom: ^17.0.0 || ^18.0.0
+    react-router: ^6.30.3
+    react-router-dom: ^6.30.2
+  peerDependenciesMeta:
+    "@backstage/frontend-test-utils":
+      optional: true
+    "@types/react":
+      optional: true
+  checksum: 10c0/8c35f05f4d8208e8aa8fe335f6d270957d1c17f558e8636d74974006db89ecfaaeda965535c32c7bdfef70b579da43712186a8a7ce17a8abee3c3d77e6ad1593
   languageName: node
   linkType: hard
 
@@ -12830,10 +12977,10 @@ __metadata:
     "@backstage/plugin-app-react": "npm:^0.2.6"
     "@backstage/plugin-app-visualizer": "npm:^0.2.7"
     "@backstage/plugin-auth": "npm:^0.1.11"
-    "@backstage/plugin-catalog": "npm:^2.0.8"
+    "@backstage/plugin-catalog": "patch:@backstage/plugin-catalog@npm%3A2.0.8#~/.yarn/patches/@backstage-plugin-catalog-npm-2.0.8-9ea28fb999.patch"
     "@backstage/plugin-catalog-graph": "npm:^0.6.7"
     "@backstage/plugin-catalog-import": "npm:^0.13.16"
-    "@backstage/plugin-home": "npm:^0.9.9"
+    "@backstage/plugin-home": "patch:@backstage/plugin-home@npm%3A0.9.9#~/.yarn/patches/@backstage-plugin-home-npm-0.9.9-001c9fa952.patch"
     "@backstage/plugin-home-react": "npm:^0.1.41"
     "@backstage/plugin-kubernetes": "npm:^0.12.22"
     "@backstage/plugin-notifications": "npm:^0.5.20"

@@ -1,0 +1,8 @@
+{
+    "entityContent.title": "Kubernetes",
+    "kubernetesContentPage.title": "Seus clusters",
+    "kubernetesContentPage.emptyState.title": "Nenhum recurso do Kubernetes",
+    "kubernetesContentPage.emptyState.description": "Nenhum recurso em nenhum cluster conhecido para {{entityName}}",
+    "kubernetesContentPage.permissionAlert.message": "Para visualizar objetos do Kubernetes, contate o administrador do portal para conceder a você as permissões 'kubernetes.clusters.read' e 'kubernetes.resources.read'.",
+    "kubernetesContentPage.permissionAlert.title": "Permissão necessária"
+}

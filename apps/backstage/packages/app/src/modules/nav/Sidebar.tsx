@@ -28,7 +28,7 @@ export const SidebarContent = NavContentBlueprint.make({
       return (
         <Sidebar>
           <SidebarLogo />
-          <SidebarGroup label="Search" icon={<SearchIcon />} to="/search">
+          <SidebarGroup label="Buscar" icon={<SearchIcon />} to="/search">
             <SidebarSearchModal />
           </SidebarGroup>
           <SidebarDivider />
@@ -43,10 +43,10 @@ export const SidebarContent = NavContentBlueprint.make({
           </SidebarGroup>
           <SidebarSpace />
           <SidebarDivider />
-          <NotificationsSidebarItem />
+          <NotificationsSidebarItem text="Notificações" />
           <SidebarDivider />
           <SidebarGroup
-            label="Settings"
+            label="Configurações"
             icon={<UserSettingsSignInAvatar />}
             to="/settings"
           >

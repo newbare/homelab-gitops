@@ -1,14 +1,14 @@
-output "bucket_name" {
-  description = "Nome do bucket S3"
-  value       = aws_s3_bucket.this.bucket
+output "bucket_names" {
+  description = "Nomes físicos dos buckets, por finalidade"
+  value       = { for k, b in aws_s3_bucket.this : k => b.bucket }
 }
 
-output "bucket_arn" {
-  description = "ARN do bucket S3"
-  value       = aws_s3_bucket.this.arn
+output "bucket_arns" {
+  description = "ARNs dos buckets, por finalidade"
+  value       = { for k, b in aws_s3_bucket.this : k => b.arn }
 }
 
-output "bucket_id" {
-  description = "ID do bucket S3"
-  value       = aws_s3_bucket.this.id
+output "bucket_ids" {
+  description = "IDs dos buckets, por finalidade"
+  value       = { for k, b in aws_s3_bucket.this : k => b.id }
 }

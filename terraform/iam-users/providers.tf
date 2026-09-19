@@ -1,5 +1,6 @@
 terraform {
-  required_version = ">= 1.0"
+  # `moved` blocks exigem >= 1.1; `optional()` em object exige >= 1.3
+  required_version = ">= 1.3"
 
   required_providers {
     aws = {
@@ -14,13 +15,16 @@ terraform {
 }
 
 provider "aws" {
-  region                      = var.aws_region
-  access_key                  = "test"
-  secret_key                  = "test"
-  skip_credentials_validation = true
-  skip_metadata_api_check     = true
-  skip_requesting_account_id  = true
-  s3_use_path_style           = true
+  region = var.aws_region
+
+  # Credenciais NUNCA no código: o provider lê AWS_ACCESS_KEY_ID /
+  # AWS_SECRET_ACCESS_KEY do ambiente (as mesmas que o aws CLI usa).
+
+  # Flags do ambiente — default `false` (comportamento seguro em AWS real).
+  skip_credentials_validation = var.skip_credentials_validation
+  skip_metadata_api_check     = var.skip_metadata_api_check
+  skip_requesting_account_id  = var.skip_requesting_account_id
+  s3_use_path_style           = var.s3_use_path_style
 
   endpoints {
     s3            = var.floci_endpoint

@@ -281,8 +281,28 @@ spec:
               rules:
                 - allow: [Component, System, API, Resource, Location, User, Group, Template]
               locations:
+                # PROVISIONADO (fora do Git) — um Group por role e um User por
+                # pessoa, gerado do users.csv do Keycloak.
                 - type: file
                   target: /etc/backstage-catalog/users.yaml
+
+                # Incremento 1 (F1): prova de mecanismo.
+                #
+                # Esta entidade existe no repo desde a Fase 7 e NENHUMA location
+                # a lia — estava escrita e invisível. É o menor passo possível:
+                # não cria entidade nova, só liga o fio que faltava.
+                #
+                # `type: url` é resolvido pelo UrlReaderProcessor e usa a
+                # integration `github.com` declarada abaixo (token via
+                # secret/backstage-github-token).
+                #
+                # ⚠️ O `owner: guests` desta entidade NÃO existe no catálogo
+                # (nossos Grupos são resilience-admins/devs/viewers). É de
+                # propósito: o erro de relation não resolvida deve aparecer nos
+                # logs do plugin-catalog-backend-module-logs. Corrigimos depois,
+                # separando as duas variáveis.
+                - type: url
+                  target: https://github.com/newbare/homelab-gitops/blob/main/apps/bookinfo/catalog-info.yaml
             integrations:
               github:
                 - host: github.com

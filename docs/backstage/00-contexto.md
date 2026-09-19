@@ -34,8 +34,29 @@ A Fase 7 começou em **14/09/2026 às 11:00** e durou **13 horas**.
 | **kubectl (server)** | v1.35.6 |
 | **Kustomize** | v5.7.1 |
 | **Node.js** | v24.21.0 |
-| **Yarn** | 1.22.22 |
+| **Yarn** | 4.13.0 |
 | **Docker** | 29.7.2 |
+
+> ⚠️ **Correção (2026-09-18):** este documento registrava **Yarn 1.22.22**, o que
+> estava incorreto. O ambiente roda **Yarn 4.13.0** (confirmado com
+> `yarn --version`). A diferença não é cosmética:
+>
+> | Aspecto | Yarn 1 (Classic) | **Yarn 4 (o nosso)** |
+> |---|---|---|
+> | Formato do `yarn.lock` | v1 | **v8** — incompatível com Yarn 1 |
+> | Adicionar dependência a um workspace | `yarn workspace <pkg> add <dep>` | **`yarn --cwd <dir> add <dep>`** |
+> | Configuração | `.yarnrc` | `.yarnrc.yml` |
+>
+> **Comando de referência** para adicionar um módulo Backstage ao backend:
+>
+> ```bash
+> cd apps/backstage
+>
+> yarn --cwd packages/backend add @backstage/plugin-auth-backend-module-oidc-provider
+> ```
+>
+> Vantagem: o Yarn resolve a versão compatível e atualiza o `yarn.lock` sozinho —
+> evita "chutar" versão à mão no `package.json`.
 
 ## 📦 Repositórios
 

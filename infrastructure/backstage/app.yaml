@@ -20,10 +20,63 @@ spec:
           image:
             registry: docker.io
             repository: newbare/homelab-backstage
-            tag: v19
+            tag: v20
             pullPolicy: Always
+
+          # Segredos que viram variáveis de ambiente no Pod:
+          #   backstage-keycloak     -> KEYCLOAK_CLIENT_SECRET (fluxo OIDC)
+          #   backstage-auth-session -> AUTH_SESSION_SECRET   (auth.session.secret)
           extraEnvVarsSecrets:
             - backstage-github-token
+            - backstage-keycloak
+            - backstage-auth-session
+
+          # O backend precisa alcançar https://keycloak.local: o discovery do OIDC
+          # devolve URLs públicas e o provider aceita SÓ `metadataUrl`.
+          # O Pod não usa o /etc/hosts do Mac — o mapeamento tem que existir aqui.
+          hostAliases:
+            - ip: 10.152.183.36 # ClusterIP do svc ingress-nginx-controller
+              hostnames:
+                - keycloak.local
+
+          # homelab-ca    -> a CA interna, DISTRIBUÍDA pelo trust-manager.
+          #                 O ConfigMap `homelab-ca` é criado automaticamente em
+          #                 todos os namespaces pelo Bundle em
+          #                 infrastructure/cert-manager/ca.yaml — não é copiado à
+          #                 mão nem versionado no Git.
+          #
+          # catalog-users -> um `Group` por role + um `User` por pessoa, para o
+          #                 resolver de sign-in achar a entidade.
+          #
+          #                 ⚠️ Este ConfigMap NÃO está no Git — de propósito.
+          #                 Repositório público + nome/e-mail de pessoas = dado
+          #                 pessoal, e dado pessoal não se versiona. Ele é GERADO
+          #                 a partir do MESMO `users.csv` que provisiona o
+          #                 Keycloak (arquivo ignorado pelo Git) e aplicado
+          #                 direto no cluster, sem passar pelo disco:
+          #
+          #                   python3 \
+          #                     infrastructure/backstage/scripts/generate-catalog.py \
+          #                     | kubectl apply -f -
+          #
+          #                 Justificativa completa e o trade-off (é o único passo
+          #                 que não é puramente GitOps) em
+          #                 infrastructure/backstage/scripts/README.md.
+          extraVolumes:
+            - name: homelab-ca
+              configMap:
+                name: homelab-ca
+            - name: catalog-users
+              configMap:
+                name: backstage-catalog-users
+          extraVolumeMounts:
+            - name: homelab-ca
+              mountPath: /etc/homelab-ca
+              readOnly: true
+            - name: catalog-users
+              mountPath: /etc/backstage-catalog
+              readOnly: true
+
           extraEnvVars:
             - name: POSTGRES_HOST
               value: postgresql.postgresql.svc.cluster.local
@@ -36,6 +89,11 @@ spec:
                 secretKeyRef:
                   name: backstage-postgresql
                   key: password
+            # Faz o processo Node confiar na CA interna. O arquivo vem do
+            # ConfigMap `homelab-ca`, criado pelo trust-manager — ver
+            # docs/certificados/01-trust-anchor-interno.md.
+            - name: NODE_EXTRA_CA_CERTS
+              value: /etc/homelab-ca/ca.crt
           appConfig:
             app:
               title: "Resilience Cloud Portal"
@@ -138,9 +196,59 @@ spec:
                   database: backstage
             auth:
               environment: production
+              # Necessário para o fluxo OIDC. Ativa o express-session, que grava na
+              # tabela `sessions` — tabela criada pelas MIGRATIONS do plugin auth
+              # no database `backstage_plugin_auth` (confirmado no cluster; é por
+              # isso que o Backstage usa `createtable: false` no session store).
+              session:
+                secret: ${AUTH_SESSION_SECRET}
               providers:
                 guest:
                   dangerouslyAllowOutsideDevelopment: true
+                # ⚠️ O provider OIDC itera as CHAVES DIRETAS deste bloco e trata
+                # cada uma como NOME DE AMBIENTE (OAuthEnvironmentHandler.mapConfig).
+                # Por isso `production:` é obrigatório — não é estilo, é o formato
+                # que o código lê. O frontend envia `?env=production`, valor que vem
+                # de `auth.environment` acima. Os três precisam casar.
+                oidc:
+                  production:
+                    metadataUrl: https://keycloak.local/realms/resilience/.well-known/openid-configuration
+                    clientId: backstage
+                    clientSecret: ${KEYCLOAK_CLIENT_SECRET}
+                    callbackUrl: https://backstage.local/api/auth/oidc/handler/frame
+                    # ⚠️ O padrão do Backstage é `none`:
+                    #     const prompt = initializedPrompt || "none";
+                    # Com `none`, o Keycloak NÃO mostra o formulário quando o usuário
+                    # não tem sessão — devolve `error=login_required` ao callback, e o
+                    # primeiro login de todo usuário falha.
+                    #
+                    # `auto` é um valor ESPECIAL: o código faz `if (prompt !== "auto")`,
+                    # ou seja, `auto` OMITE o parâmetro e deixa o IdP decidir. Verificado
+                    # seguindo o redirect sem sessão (ver docs da fase 11).
+                    prompt: auto
+                    signIn:
+                      resolvers:
+                        # Resolve pelo LOCAL PART do e-mail (fulano@dominio ->
+                        # user:default/fulano) — é literalmente o que o código
+                        # faz: `profile.email.split("@")[0]`. Escolhido no lugar
+                        # de `emailMatchingUserEntityProfileEmail`, cujo fallback
+                        # geraria um entityRef contendo `@` — inválido como nome
+                        # de entidade. Os nomes reais estão no `users.csv`, fora
+                        # do Git; ver infrastructure/backstage/scripts/README.md
+                        - resolver: emailLocalPartMatchingUserEntityName
+            # Sem este bloco o catálogo fica VAZIO no cluster: as
+            # `catalog.locations` do app-config.production.yaml da imagem NUNCA são
+            # lidas, porque o chart sobrescreve o CMD e passa apenas o ConfigMap
+            # gerado do `appConfig` daqui.
+            #
+            # O arquivo apontado vem do volume `catalog-users`, que é o ConfigMap
+            # PROVISIONADO (ver comentário em extraVolumes) — não é versionado.
+            catalog:
+              rules:
+                - allow: [Component, System, API, Resource, Location, User, Group, Template]
+              locations:
+                - type: file
+                  target: /etc/backstage-catalog/users.yaml
             integrations:
               github:
                 - host: github.com

@@ -1,0 +1,57 @@
+# Application que gerencia a CA interna do homelab.
+#
+# Contexto e justificativa das escolhas: docs/certificados/01-trust-anchor-interno.md
+#
+# ⚠️ DIFERENÇA DELIBERADA EM RELAÇÃO ÀS OUTRAS APPLICATIONS DO REPO:
+#    `prune: false` (as demais usam `prune: true`).
+#
+#    O `prune` apaga do cluster o que o ArgoCD gerencia mas não existe mais no
+#    Git. Se o `ca.yaml` fosse renomeado — ou se o glob do `include` mudasse —
+#    o ArgoCD concluiria que o `Certificate` sumiu e apagaria a CA junto com a
+#    chave privada dela.
+#
+#    Uma CA não é um recurso comum: ela é a raiz de confiança. Apagá-la quebra a
+#    cadeia de tudo que ela assinou, e não há como "recriar igual" — seria uma
+#    raiz nova, com identidade nova.
+#
+#    Raiz de confiança se trata diferente de recurso comum.
+#
+# ⚠️ O `directory.include` é explícito ('ca.yaml') pelo mesmo motivo que nas
+#    outras Applications: um glob largo como '*.yaml' incluiria este próprio
+#    arquivo, fazendo a Application tentar gerenciar a si mesma.
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager-ca
+  namespace: argocd
+  annotations:
+    # ⚠️ Wave 6 — NÃO é wave baixa, apesar de a CA ser pré-requisito de quem
+    #    confia nela. Motivo: este `ca.yaml` também declara o `Bundle`, e o
+    #    `Bundle` é um CRD que vem do trust-manager. São DOIS pré-requisitos:
+    #
+    #      cert-manager (wave 4)  ->  trust-manager (wave 5)  ->  este (wave 6)
+    #         CRDs Certificate            CRD Bundle
+    #         e ClusterIssuer
+    #
+    #    Com wave menor, o `Bundle` seria recusado por CRD ausente.
+    #    (Ordem entre Applications só tem efeito quando existir um "app of apps" —
+    #     item de backlog do repo. Hoje o valor é apenas documental.)
+    argocd.argoproj.io/sync-wave: "6"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/newbare/homelab-gitops.git
+    targetRevision: main
+    path: infrastructure/cert-manager
+    directory:
+      include: "ca.yaml"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: false

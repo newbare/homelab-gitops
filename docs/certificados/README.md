@@ -5,6 +5,13 @@ laboratório. Cada comando vem com o porquê e a saída esperada.
 
 **Última atualização:** 2026-09-18
 
+**Documentos desta pasta:**
+
+| Documento | Assunto |
+|---|---|
+| `README.md` (este) | Como os certificados são gerados, instalados e diagnosticados |
+| [`01-trust-anchor-interno.md`](01-trust-anchor-interno.md) | Trust anchor entre namespaces: 3 opções comparadas, aplicadas ao caso Keycloak ← Backstage |
+
 ---
 
 ## 🧩 Como funciona
@@ -363,6 +370,12 @@ O caminho seria:
 
 > 📌 **Não implementado ainda.** Fica como melhoria do laboratório — e elimina os
 > avisos de todos os serviços de uma vez, em vez de um a um.
+>
+> 📖 **Análise completa das três opções:** [`01-trust-anchor-interno.md`](01-trust-anchor-interno.md)
+> compara este caminho com outras duas alternativas (cópia manual e trust-manager),
+> traz os comandos reais de cada uma e explica por que a CA própria foi a escolhida.
+> Inclui a discussão de por que a validade de 90 dias do Let's Encrypt **não** é o
+> problema — e o que realmente é.
 
 ---
 

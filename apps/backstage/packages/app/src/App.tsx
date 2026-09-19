@@ -4,6 +4,7 @@ import * as plugins from './plugins';
 import { navModule } from './modules/nav';
 import { homeModule } from './modules/home';
 import { themeModule } from './modules/theme';
+import { authModule } from './modules/auth';
 
 import './resilience-theme.css';
 
@@ -14,5 +15,6 @@ export default createApp({
     navModule,
     homeModule,
     themeModule,
+    authModule,
   ],
 });

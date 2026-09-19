@@ -29,6 +29,10 @@ backend.add(import('@backstage/plugin-auth-backend'));
 backend.add(import('@backstage/plugin-auth-backend-module-guest-provider'));
 // See https://backstage.io/docs/auth/guest/provider
 
+// OIDC provider — usa o Keycloak do homelab como identity provider.
+// Ver infrastructure/keycloak/README.md
+backend.add(import('@backstage/plugin-auth-backend-module-oidc-provider'));
+
 // catalog plugin
 backend.add(import('@backstage/plugin-catalog-backend'));
 backend.add(

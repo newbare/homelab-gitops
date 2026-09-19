@@ -1,13 +1,21 @@
-apiVersion: backstage.io/v1alpha1
-kind: Component
-metadata:
-  name: backstage
-  description: An example of a Backstage application.
-  # Example for optional annotations
-  # annotations:
-  #   github.com/project-slug: backstage/backstage
-  #   backstage.io/techdocs-ref: dir:.
-spec:
-  type: website
-  owner: john@example.com
-  lifecycle: experimental
+# ⚠️ ARQUIVO MORTO — nenhuma location aponta para este caminho.
+#
+# Isto era o exemplo gerado pelo `create-app` do Backstage, ainda com
+# `owner: john@example.com` e `lifecycle: experimental`. Ele NUNCA foi
+# registrado como location no appConfig, então jamais entrou no catálogo —
+# ficou aqui como isca para quem lesse o repo.
+#
+# A entidade real do Backstage vive em:
+#   catalog/catalog-info.yaml   →   Component `backstage`
+#
+# ── POR QUE VIROU STUB EM VEZ DE SER APAGADO ─────────────────────────────
+# Se um dia a descoberta automática do GitHub (opção A de
+# docs/backstage/13-plano-catalogo.md) for ligada, o provider varre o repo
+# atrás de `catalog-info.yaml` e ENCONTRARIA este arquivo. Ele definia
+# `metadata.name: backstage` — o mesmo nome do Component real. A doc é clara:
+# "When multiple catalog-info.yaml files with the same metadata.name property
+# are discovered, one will be processed and all others will be skipped."
+#
+# Como agora o arquivo só tem comentários, ele não produz entidade alguma e
+# não colide. Apagar é o caminho definitivo; este stub é o registro de por que
+# ele existiu.

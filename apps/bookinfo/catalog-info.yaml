@@ -2,14 +2,37 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: bookinfo
-  description: "Aplicação de demonstração do Istio (Bookinfo)"
+  title: Bookinfo (demonstração do Istio)
+  description: >-
+    Aplicação de demonstração do Istio. NÃO é infraestrutura do laboratório —
+    existe para exercitar a malha e, de quebra, provar o mecanismo de catálogo
+    (foi a primeira entidade a entrar, no Incremento 1 da F1).
   annotations:
-    backstage.io/techdocs-ref: dir:.
+    # Liga esta entidade à Application `bookinfo` do ArgoCD.
+    #
+    # ⚠️ Hoje é INERTE: o plugin que lê esta anotação
+    # (@backstage-community/plugin-argocd) não está instalado. É preparação
+    # documentada, não funcionalidade.
     argocd/app-name: bookinfo
+
+    # ❌ `backstage.io/techdocs-ref: dir:.` foi REMOVIDO daqui.
+    #
+    # Motivo, verificado no log do Pod:
+    #   GET .../techdocs/static/docs/default/component/bookinfo/search/search_index.json → 404
+    #   warn "Index for techdocs was not replaced: indexer received 0 documents"
+    #
+    # A anotação exige, na raiz do componente, um `mkdocs.yml` e uma pasta
+    # `docs/` com pelo menos `index.md`. Nada disso existe em apps/bookinfo/.
+    # Era uma promessa que o TechDocs tentava cumprir e falhava — poluindo o
+    # log da busca. Quando houver docs de verdade, ela volta.
   tags:
     - istio
     - demo
 spec:
   type: service
-  lifecycle: production
-  owner: guests
+  # `production` era incorreto: é demonstração, não serviço mantido.
+  lifecycle: experimental
+  # Era `guests`, que NÃO existe no catálogo — nossos grupos são só
+  # resilience-admins/devs/viewers. Owner pendurado deixa a relação `ownedBy`
+  # sem destino no grafo.
+  owner: resilience-admins

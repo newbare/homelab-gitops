@@ -351,3 +351,40 @@ spec:
   type: database
   owner: resilience-admins
   system: identidade
+
+---
+# ══════════════════════════════════════════════════════════════════════════
+# Component — DONO DO SITE DE DOCUMENTAÇÃO (TechDocs)
+#
+# Decisão T5(a) de docs/backstage/14-plano-techdocs.md: UM Component
+# `type: documentation` é o dono do site, e os outros componentes referenciam
+# este via `backstage.io/techdocs-entity` — em vez de cada um ter o seu.
+# O motivo, na doc oficial, é evitar "multiple builds of the same docs".
+#
+# `backstage.io/techdocs-ref` é o que faz a aba Docs existir na página da
+# entidade. `dir:.` aponta para a raiz do repositório, onde vive o
+# `mkdocs.yml` — que ainda NÃO existe: ele entra no Incremento 2, junto com o
+# Job in-cluster que passa a gerar o site (com `builder: external` o Pod do
+# Backstage não builda nada; ver app.yaml).
+#
+# Sem `system`: é documentação transversal do laboratório, não pertence a um
+# dos cinco Systems.
+# ══════════════════════════════════════════════════════════════════════════
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: documentacao-resilience
+  title: Documentação do laboratório
+  description: >-
+    Acervo completo do laboratório: jornadas por fase, runbooks,
+    troubleshooting, decisões de arquitetura e auditoria. Publicado pelo
+    TechDocs a partir da pasta docs/ deste repositório.
+  annotations:
+    backstage.io/techdocs-ref: dir:.
+  tags:
+    - documentation
+    - techdocs
+spec:
+  type: documentation
+  lifecycle: production
+  owner: resilience-admins

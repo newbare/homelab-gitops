@@ -26,10 +26,16 @@ spec:
           # Segredos que viram variáveis de ambiente no Pod:
           #   backstage-keycloak     -> KEYCLOAK_CLIENT_SECRET (fluxo OIDC)
           #   backstage-auth-session -> AUTH_SESSION_SECRET   (auth.session.secret)
+          #   backstage-techdocs-s3  -> AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_REGION,
+          #                             lidos pelo publisher `awsS3` do TechDocs. As chaves
+          #                             do Secret viram env vars direto (o SDK da AWS
+          #                             resolve a credencial sozinho a partir delas).
+          #                             Criado FORA do Git, como o backstage-keycloak.
           extraEnvVarsSecrets:
             - backstage-github-token
             - backstage-keycloak
             - backstage-auth-session
+            - backstage-techdocs-s3
 
           # O backend precisa alcançar https://keycloak.local: o discovery do OIDC
           # devolve URLs públicas e o provider aceita SÓ `metadataUrl`.
@@ -317,6 +323,34 @@ spec:
                 # faz o Backstage processar um e descartar o outro, em silêncio.
                 - type: url
                   target: https://github.com/newbare/homelab-gitops/blob/main/catalog/catalog-info.yaml
+            # TechDocs — decisões T1 a T5 de docs/backstage/14-plano-techdocs.md.
+            #
+            # `builder: external` (T1): quem GERA o site é um Job in-cluster, não o
+            # backend. Verificado no código: DefaultDocsBuildStrategy.shouldBuild()
+            # só devolve true para `undefined` ou `local` — com `external` o backend
+            # nunca tenta buildar. Isso é obrigatório aqui porque o Pod NÃO tem
+            # mkdocs, python3 nem docker (verificado dentro do container).
+            #
+            # `endpoint` e `s3ForcePathStyle` NÃO constam da página oficial
+            # (backstage.io/docs/features/techdocs/using-cloud-storage), mas o código
+            # da nossa versão lê os dois e repassa ao S3Client:
+            #   plugin-techdocs-node/dist/stages/publish/awsS3.cjs.js:89  -> endpoint
+            #   plugin-techdocs-node/dist/stages/publish/awsS3.cjs.js:95  -> s3ForcePathStyle
+            # Sem eles não existe forma de apontar o publisher para o Floci.
+            #
+            # `techdocs.storageUrl` NÃO é configurado de propósito: é opcional no
+            # frontend, que cai no default `${techdocs}/static/docs` (client.esm.js:77).
+            techdocs:
+              builder: external
+              publisher:
+                type: awsS3
+                awsS3:
+                  bucketName: resilience-techdocs
+                  region: us-east-1
+                  endpoint: http://192.168.99.5:4566
+                  # Floci é API S3-compatível: exige path-style (bucket no caminho,
+                  # não no subdomínio).
+                  s3ForcePathStyle: true
             integrations:
               github:
                 - host: github.com

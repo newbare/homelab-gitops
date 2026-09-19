@@ -1,0 +1,22 @@
+# ==========================================================================
+# Configuração do site de documentação (TechDocs)
+#
+# O QUE ESTE ARQUIVO É: o marcador que o TechDocs procura na raiz do
+# repositório — exatamente o alvo de `backstage.io/techdocs-ref: dir:.` na
+# entidade `documentacao-resilience` (catalog/catalog-info.yaml).
+#
+# `techdocs-core` NÃO é decorativo: é o bundle (tema Material + os plugins que
+# o Backstage espera) empacotado no `mkdocs-techdocs-core`. Sem ele o site sai
+# com o tema padrão do mkdocs, e o leitor do Backstage espera a estrutura do
+# tema do TechDocs — dá spinner eterno, que foi exatamente o sintoma observado.
+#
+# Sem `nav:` de propósito: o mkdocs monta a navegação a partir da árvore de
+# `docs/`. Curar a ordem é melhoria futura, não requisito para publicar.
+# ==========================================================================
+site_name: Documentação do laboratório resilience
+site_description: >-
+  Jornadas por fase, runbooks, decisões de arquitetura, troubleshooting e
+  auditoria do laboratório GitOps/DevSecOps em MicroK8s.
+
+plugins:
+  - techdocs-core

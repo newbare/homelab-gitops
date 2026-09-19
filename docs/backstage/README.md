@@ -7,7 +7,7 @@ e (futuramente) observabilidade do cluster.
 ## 🌐 Acesso
 
 - **URL:** https://backstage.local
-- **Auth:** guest (por enquanto — Fase 8 planeja OAuth GitHub)
+- **Auth:** **OIDC via Keycloak** (realm `resilience`) — desde a Fase 11
 - **Ingress:** NGINX, com TLS self-signed (`backstage-tls`)
 
 ## 🗂️ Estrutura da documentação
@@ -21,6 +21,17 @@ e (futuramente) observabilidade do cluster.
 | [`04-runbook.md`](./04-runbook.md) | Operações comuns |
 | [`05-troubleshooting.md`](./05-troubleshooting.md) | Erros conhecidos e soluções |
 | [`06-referencias.md`](./06-referencias.md) | Links úteis |
+| [`07-fase-8-polish.md`](./07-fase-8-polish.md) | Jornada da Fase 8 (polish visual) |
+| [`09-fase-9-floci-terraform-lambda.md`](./09-fase-9-floci-terraform-lambda.md) | Jornada da Fase 9 |
+| [`10-fase-11-backstage-oidc.md`](./10-fase-11-backstage-oidc.md) | **Jornada da Fase 11 — login OIDC via Keycloak** |
+
+### Documentos relacionados (fora desta pasta)
+
+| Documento | Conteúdo |
+|---|---|
+| [`../certificados/01-trust-anchor-interno.md`](../certificados/01-trust-anchor-interno.md) | A CA interna e por que folha rotativa não se copia |
+| [`../praticas/README.md`](../praticas/README.md) | Práticas de Git/CLI e verificação usadas no repo |
+| [`../../infrastructure/backstage/README.md`](../../infrastructure/backstage/README.md) | Os manifestos e as pegadinhas do chart |
 
 ## 🔗 Repositórios
 
@@ -43,14 +54,20 @@ e (futuramente) observabilidade do cluster.
 | Notifications | ✅ |
 | TechDocs | ⚠️ Configurado, sem docs |
 | Kubernetes plugin | ❌ Não configurado |
-| Auth real | ❌ Guest apenas |
+| **Auth real (OIDC Keycloak)** | ✅ Fase 11 |
+| Permissões/RBAC por grupo | ❌ Grupos existem, sem permissões |
 | CSP (Random Joke) | ⚠️ Pendente |
 
 ## 📌 Regras do projeto
 
 Este projeto segue **GitOps declarativo**:
 
-1. **Toda mudança é feita no Git** (nada de `kubectl apply` manual)
+1. **Toda mudança é feita no Git.**
+   **Exceção obrigatória:** Applications **baseadas em chart** (`source.chart`)
+   não são lidas do Git pelo ArgoCD — o objeto `Application` vive no cluster.
+   Para essas, o commit **precisa** ser seguido de
+   `kubectl apply -f infrastructure/<app>/app.yaml`.
+   Ver [`../../infrastructure/backstage/README.md`](../../infrastructure/backstage/README.md).
 2. **ArgoCD sincroniza automaticamente** (auto-sync + self-heal ativos)
 3. **Imagens são imutáveis** (v1, v2, v3... — nunca `latest`)
 4. **Decisões são documentadas** (ADRs em `03-decisoes.md`)

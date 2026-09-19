@@ -170,7 +170,7 @@ A Lambda pode rodar **múltiplas vezes** (retries do S3). Precisa `try/except En
 | IAM Role | `resilience-cloud-dev-lambda-role` |
 | Lambda | `resilience-cloud-dev-process-users` |
 | S3 Event Notification | `.xlsx` → Lambda |
-| IAM Users | `jefferson.leite`, `maria.silva`, `joao.santos`, `ana.costa` |
+| IAM Users | 4 — os mesmos `username` do `users.csv` (arquivo fora do Git) |
 | IAM Groups | `resilience-admins`, `resilience-devs`, `resilience-viewers` |
 | SSO Users | 4 no Identity Store |
 | catalog-info.yaml | 4 arquivos no S3 |

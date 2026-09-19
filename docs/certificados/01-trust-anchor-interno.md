@@ -396,7 +396,7 @@ No `app.yaml` do Backstage, o mesmo bloco `extraVolumes` / `extraVolumeMounts` /
 
 | # | Problema |
 |---|---|
-| 1 | Ainda existe **um passo manual** (extrair a CA e commitar o `ConfigMap`) — porém uma vez a cada ~10 anos, não a cada 90 dias |
+| 1 | Ainda existe **um passo manual**: extrair a CA e commitá-la num arquivo do repo. Material **gerado pelo cluster** acaba versionado como dado — o valor não é derivável do Git. Ver seção 10 |
 | 2 | Num bootstrap do zero, a CA precisa existir antes do `ConfigMap` poder ser preenchido (chicken-and-egg, resolvido por ordem de sync-wave) |
 | 3 | Quem confia na CA passa a confiar em **tudo** que ela assinar. A chave privada da CA é agora material sensível e deve ficar só no cluster |
 
@@ -455,11 +455,22 @@ No `app.yaml` do Backstage, o volume passa a apontar para esse `ConfigMap`
 
 ```yaml
 backstage:
+  extraEnvVars:
+    - name: NODE_EXTRA_CA_CERTS
+      value: /etc/homelab-ca/ca.crt
   extraVolumes:
-    - name: keycloak-ca
+    - name: homelab-ca          # nome do VOLUME: livre, escolhido por nós
       configMap:
-        name: homelab-ca
+        name: homelab-ca        # nome do CONFIGMAP: tem de ser o nome do Bundle
+  extraVolumeMounts:
+    - name: homelab-ca
+      mountPath: /etc/homelab-ca
+      readOnly: true
 ```
+
+Os dois `homelab-ca` acima são coincidência de nome, não obrigação: o trust-manager
+nomeia o `ConfigMap` que cria com o **nome do `Bundle`**. O nome do volume é livre.
+Manter os dois iguais é só para leitura.
 
 ```bash
 # confere o estado do bundle
@@ -553,11 +564,151 @@ Cinco razões, em ordem de peso:
 
 ---
 
-## 7. Como validar que funcionou
+## 7. Como validar
+
+### 7.1 A CA (uma vez, logo após criá-la)
+
+O bloco mais importante depois de criar a CA: provar que ela **é** uma CA, e não
+apenas mais um certificado auto-assinado.
+
+```bash
+kubectl -n cert-manager get secret homelab-ca \
+  -o jsonpath='{.data.tls\.crt}' | base64 -d > /tmp/homelab-ca.crt
+
+echo '--- identidade e datas ---'
+openssl x509 -in /tmp/homelab-ca.crt -noout -subject -issuer -dates
+
+echo
+echo '--- e uma CA? ---'
+openssl x509 -in /tmp/homelab-ca.crt -noout -text | grep -A 1 'Basic Constraints'
+
+echo
+echo '--- Key Usage ---'
+openssl x509 -in /tmp/homelab-ca.crt -noout -text | grep -A 2 'X509v3 Key Usage'
+
+echo
+echo '--- ela valida a si mesma? ---'
+openssl verify -CAfile /tmp/homelab-ca.crt /tmp/homelab-ca.crt
+```
+
+**Saída real obtida (2026-09-18):**
+
+```
+--- identidade e datas ---
+subject=CN=homelab-ca
+issuer=CN=homelab-ca
+notBefore=Sep 18 19:18:59 2026 GMT
+notAfter=Sep 15 19:18:59 2036 GMT
+
+--- e uma CA? ---
+            X509v3 Basic Constraints: critical
+                CA:TRUE
+
+--- Key Usage ---
+            X509v3 Key Usage: critical
+                Digital Signature, Key Encipherment, Certificate Sign
+
+--- ela valida a si mesma? ---
+/tmp/homelab-ca.crt: OK
+```
+
+Por que **quatro** verificações, e não uma só:
+
+| Bloco | Pergunta que responde | Se falhar |
+|---|---|---|
+| identidade e datas | é uma identidade própria, com vida longa? | a cópia vai expirar e o login quebra sozinho |
+| Basic Constraints | é `CA:TRUE`? | é só mais uma folha auto-assinada — o problema original |
+| Key Usage | tem `Certificate Sign`? | a CA existe, mas **não pode assinar** folhas |
+| `openssl verify` | forma cadeia válida? | a raiz está malformada |
+
+O terceiro bloco é o mais fácil de esquecer: `CA:TRUE` **sem** `Certificate Sign`
+é uma CA que existe no papel e falha na prática.
+
+> 📌 Note que aqui o `subject` vem **preenchido** (`CN=homelab-ca`), enquanto nos
+> certificados folha do cert-manager ele vinha **vazio**. Não é inconsistência:
+> numa CA o CN vai para o `Subject` porque não há SAN a preencher. O mesmo
+> comando dá resultados diferentes porque os tipos de certificado são diferentes.
+
+> 🔧 Refinamento possível: o `Key Usage` saiu com `Key Encipherment` e sem
+> `CRL Sign`. Uma CA estritamente correta costuma ter apenas
+> `Certificate Sign` + `CRL Sign`.
+
+### 7.2 A folha de `keycloak.local`
+
+Depois de trocar a annotation para `homelab-ca-issuer`, a prova definitiva de que
+funcionou não é ler a annotation — é a **cadeia**:
+
+```bash
+# extrai a folha que o ingress está servindo
+kubectl -n keycloak get secret keycloak.local-tls \
+  -o jsonpath='{.data.tls\.crt}' | base64 -d > /tmp/keycloak-leaf.crt
+
+# a CA interna valida essa folha?
+openssl verify -CAfile /tmp/homelab-ca.crt /tmp/keycloak-leaf.crt
+```
+
+Esperado: `/tmp/keycloak-leaf.crt: OK`.
+
+**Antes** da troca, esse mesmo comando retornava:
+
+```
+error 18 at 0 depth lookup: self-signed certificate
+```
+
+— que é exatamente o problema descrito na seção 2. Ou seja: o comando é o mesmo,
+e a mudança de resultado é a prova.
+
+#### ⚠️ Três sinais que PARECEM provar, mas não provam
+
+Este é o ponto mais fácil de errar de todo o documento. Depois de trocar a
+annotation, os três comandos abaixo **parecem** confirmar sucesso — e **nenhum**
+deles confirma:
+
+| Sinal | O que ele realmente prova |
+|---|---|
+| `kubectl get ingress` mostrando `homelab-ca-issuer` | que a **annotation** mudou. Nada sobre o certificado |
+| `kubectl get certificate` com `READY: True` | que existe um certificado válido. Nada sobre **qual issuer** o gerou |
+| `AGE` do objeto `Certificate` | **o mais enganoso** — ver abaixo |
+
+**O caso do `AGE`.** Ele é a idade do **objeto** `Certificate`, **não** do
+certificado emitido. Ao reemitir, o cert-manager **atualiza o `Secret` no lugar**;
+o objeto `Certificate` não é recriado. Logo:
+
+```
+NAME                 READY   SECRET               AGE
+keycloak.local-tls   True    keycloak.local-tls   150m
+```
+
+`READY: True` com `AGE: 150m` pode significar duas coisas **opostas**:
+
+- ✅ o certificado **foi** reemitido agora; o objeto é que é antigo
+- ❌ a annotation mudou, mas o cert-manager **ainda não reemitiu**
+
+Os dois estados produzem **exatamente a mesma saída**. A idade do objeto não
+distingue um do outro. Confiar nela é confiar em um sinal que não responde à
+pergunta feita.
+
+#### O que prova de verdade
+
+| Verificação | O que prova |
+|---|---|
+| `openssl verify -CAfile <CA> <folha>` → `OK` | a folha foi **assinada por essa CA** — a cadeia fecha |
+| `notBefore` recente na folha **servida** | o nginx está entregando o certificado **novo**, e não um antigo em cache |
+
+```bash
+# a data de emissão do certificado que o servidor entrega AGORA
+echo | openssl s_client -connect keycloak.local:443 -servername keycloak.local 2>/dev/null \
+  | openssl x509 -noout -dates
+```
+
+Se o `notBefore` for de hoje (e não da data em que o Ingress foi criado), a
+reemissão realmente chegou ao servidor.
+
+### 7.3 O Pod do Backstage
 
 ```bash
 # 1. o Pod subiu e está montando o arquivo?
-kubectl -n backstage exec deploy/backstage -- ls -l /etc/keycloak-ca/
+kubectl -n backstage exec deploy/backstage -- ls -l /etc/homelab-ca/
 
 # 2. a variável de ambiente está no processo?
 kubectl -n backstage exec deploy/backstage -- printenv NODE_EXTRA_CA_CERTS
@@ -571,12 +722,78 @@ kubectl -n backstage exec deploy/backstage -- node -e "
 
 Esperado: `HTTP 200`.
 
-E, do lado do cluster, o certificado de `keycloak.local` deve agora ser emitido
-pela CA interna:
+#### 7.3.1 O controle negativo que NÃO funciona
+
+O jeito intuitivo de provar que é a CA montada que sustenta a confiança seria
+limpar a variável em runtime:
 
 ```bash
-kubectl -n keycloak get secret keycloak.local-tls -o jsonpath='{.data.tls\.crt}' \
-  | base64 -d | openssl x509 -noout -text | grep -A 2 'Authority Key Identifier'
+# ❌ NÃO É UM CONTROLE VÁLIDO
+kubectl -n backstage exec deploy/backstage -- node -e "
+  process.env.NODE_EXTRA_CA_CERTS='';
+  fetch('https://keycloak.local/realms/resilience/.well-known/openid-configuration')
+    .then(r => console.log('INESPERADO: HTTP', r.status))..."
+```
+
+Resultado observado: `HTTP 200` — **igual ao caso positivo. Não prova nada.**
+
+Motivo: o Node lê `NODE_EXTRA_CA_CERTS` **uma única vez, na inicialização do
+processo**, e carrega o bundle no trust store. Alterar a variável depois não
+desfaz a confiança que já foi carregada.
+
+O controle válido remove a variável do **processo filho**, para que ele **nasça**
+sem ela:
+
+```bash
+# ✅ CONTROLE NEGATIVO VÁLIDO
+kubectl -n backstage exec deploy/backstage -- \
+  env -u NODE_EXTRA_CA_CERTS node -e "
+    fetch('https://keycloak.local/realms/resilience/.well-known/openid-configuration')
+      .then(r => console.log('INESPERADO: HTTP', r.status))
+      .catch(e => console.log('como esperado, falhou:', e.cause?.code ?? e.message))"
+```
+
+Resultado observado:
+
+```
+como esperado, falhou: UNABLE_TO_VERIFY_LEAF_SIGNATURE
+```
+
+É o contraste entre os dois quadros que sustenta a afirmação "esta CA é a origem
+da confiança" — e não, por exemplo, um certificado já embutido na imagem.
+
+#### 7.3.2 Impressão digital igual, arquivo diferente
+
+Ao conferir a CA distribuída pelo trust-manager contra o `Secret` de origem:
+
+| | bytes | impressão digital SHA-256 |
+|---|---|---|
+| `Secret homelab-ca` (`tls.crt`) | 554 | `F9:B1:EE:...:EF:A3` |
+| `ConfigMap homelab-ca` (`ca.crt`) | 553 | `F9:B1:EE:...:EF:A3` |
+
+As impressões digitais são **idênticas** e os tamanhos **diferem em 1 byte**. O
+`diff` mostra por quê:
+
+```
+10c10
+< -----END CERTIFICATE-----
+---
+> -----END CERTIFICATE-----
+\ No newline at end of file
+```
+
+O trust-manager normaliza o PEM e **remove o `\n` final**. Consequência prática:
+comparar arquivos por hash (`shasum`) acusa diferença onde **não há diferença
+criptográfica**. Para comparar identidade de certificado, use impressão digital —
+não hash de arquivo:
+
+```bash
+# ✅ compara IDENTIDADE
+kubectl -n cert-manager get secret homelab-ca -o jsonpath='{.data.tls\.crt}' \
+  | base64 -d | openssl x509 -noout -fingerprint -sha256
+
+kubectl -n backstage get configmap homelab-ca -o jsonpath='{.data.ca\.crt}' \
+  | openssl x509 -noout -fingerprint -sha256
 ```
 
 ---
@@ -588,16 +805,63 @@ kubectl -n keycloak get secret keycloak.local-tls -o jsonpath='{.data.tls\.crt}'
 | `DEPTH_ZERO_SELF_SIGNED_CERT` | o `NODE_EXTRA_CA_CERTS` não chegou ao processo, ou o arquivo montado está vazio |
 | `UNABLE_TO_VERIFY_LEAF_SIGNATURE` | foi montado o certificado **folha** errado (ex.: de outro host) |
 | Funcionava e parou **sozinho** | rotação do certificado. Sintoma clássico da Opção A |
-| `mountPath` certo mas `ls` vazio | `ConfigMap` criado no namespace errado — precisa estar no ns `backstage` |
-| Erro só depois de recriar o Pod | o `ConfigMap` foi criado imperativamente e não está no Git |
+| `mountPath` certo mas `ls` vazio | `ConfigMap` montado não existe, ou o nome do `ConfigMap` no `extraVolumes` não é o nome do `Bundle` |
+| `ConfigMap homelab-ca` não aparece em algum namespace | trust-manager não está rodando, ou o `Bundle` não sincronizou — ver os comandos abaixo |
+| Erro só depois de recriar o Pod | algum recurso foi criado **imperativamente** e não está no Git. Hoje isso se aplica a `backstage-catalog-users`, não mais à CA |
+| `READY: True` com `AGE` antigo e a cadeia **não** fecha | **falso positivo** — `AGE` é do objeto, não do certificado; o cert-manager ainda não reemitiu (ver 7.2) |
+| `openssl verify` dá `error 18` depois de trocar o issuer | a folha no Secret ainda é a antiga, ou o `.crt` em `/tmp` está desatualizado |
+| `shasum` do `Secret` difere do `ConfigMap` | esperado: o trust-manager remove o `\n` final. Compare por impressão digital (ver 7.3.2) |
 
 Comandos de investigação:
 
 ```bash
-kubectl -n backstage get configmap
+# --- os recursos de confiança ---
+kubectl get bundle
+kubectl -n cert-manager get pods                                    # trust-manager Running?
+kubectl get configmap -A --field-selector metadata.name=homelab-ca  # chegou em todos os ns?
+kubectl get bundle homelab-ca \
+  -o jsonpath='{range .status.conditions[*]}{.type}={.status}  {.message}{"\n"}{end}'
+
+# --- o que o Pod está usando ---
 kubectl -n backstage describe deploy backstage | grep -A 5 -i 'mount\|environment'
 kubectl -n backstage logs deploy/backstage | grep -i 'certificate\|self.signed\|oidc'
 ```
+
+### 8.1 "Tudo reiniciou ao mesmo tempo" ≠ "as aplicações quebraram"
+
+Um caso que apareceu em 2026-09-18 e que vale saber distinguir: durante uma pausa,
+**todos os pods do cluster** reiniciaram na mesma janela de ~1 minuto —
+`coredns`, `calico`, `metallb`, `argocd` (7 pods), `prometheus`, `grafana`,
+`jaeger`, `keycloak`, `backstage` — e, junto, a conexão com a API passou a ser
+recusada em `192.168.99.5:16443`.
+
+Isso **não** é falha de nenhuma aplicação. Reinício simultâneo de `coredns` e
+`calico` não pode ser causado por uma aplicação: é **restart do runtime/kubelet**
+(o MicroK8s foi reiniciado — muito provavelmente a VM foi suspensa junto com o Mac).
+
+Duas assinaturas que identificam esse cenário:
+
+| Assinatura | Por quê |
+|---|---|
+| `restartCount > 0` com `lastState` **vazio** | o status do container foi truncado junto com o runtime; um crash real deixaria `lastState.terminated.reason` |
+| `startedAt` de **pods diferentes** concentrados no mesmo minuto | aplicações não combinam horário de restart entre si |
+
+Como separar os dois casos:
+
+```bash
+# motivo real de um restart (útil quando é crash de verdade)
+kubectl -n <ns> get pod <pod> \
+  -o jsonpath='{range .status.containerStatuses[*]}{.lastState.terminated.reason} exit={.lastState.terminated.exitCode}{"\n"}{end}'
+
+# houve pressão de recursos? (descarta OOM como causa)
+kubectl get node <no> -o jsonpath='{range .status.conditions[*]}{.type}={.status}{"\n"}{end}'
+kubectl get events -A --field-selector reason=Evicted
+```
+
+No caso ocorrido, o diagnóstico fechou com: nó `Ready=True`, sem `MemoryPressure`,
+**zero** eventos `Evicted`, **zero** pods fora de `Running`. Ou seja, o cluster
+estava saudável — houve restart do runtime, e nada mais. Depois de um restart
+assim, **revalide** os recursos que dependem de estado (login OIDC, certificados).
 
 **Datas para ter no radar** (sintoma = login OIDC parando de funcionar sem
 nenhuma mudança no repo):
@@ -620,14 +884,134 @@ kubectl -n cert-manager get certificate homelab-ca -o wide
 
 ---
 
-## 10. Backlog — quando migrar para a Opção C
+## 10. Status: a refatoração B + C foi executada (2026-09-18)
 
-Adotar trust-manager quando **qualquer** destes for verdadeiro:
+> Esta seção era **"limitação conhecida + refatoração planejada"**. Agora é o
+> registro do que foi feito.
 
-- outro workload (além do Backstage) precisar confiar em certificados internos;
-- o lab passar a rodar uma CA interna de verdade para múltiplos serviços;
-- a manutenção do `ConfigMap` da CA começar a incomodar.
+### 10.1 A limitação que motivou a refatoração
 
-A migração é incremental: o `Bundle` aponta para a **mesma** `Secret` `homelab-ca`
-criada na Opção B, e o Backstage só troca o nome do `ConfigMap` referenciado no
-volume. Nada do trabalho da Opção B é descartado.
+A Opção B resolveu *"a raiz rotaciona"*, mas **não** resolveu *"alguém precisa
+copiar"*. Ela apenas esticou o intervalo: de 90 dias para 10 anos.
+
+Isso apareceu concretamente em `infrastructure/backstage/keycloak-ca.yaml`, onde
+o certificado da CA estava **escrito dentro de um arquivo do Git**:
+
+```yaml
+data:
+  ca.crt: |
+    -----BEGIN CERTIFICATE-----
+    MIIBbTCCARSgAwIBAgIUDdOuR3wbTTT+zzYbJSSXsz0RfaowCgYIKoZIzj0EAwIw
+    ...
+```
+
+Por que isso era um cheiro, mesmo sendo material público:
+
+| Problema | Detalhe |
+|---|---|
+| **O valor não é derivável do repo** | foi *gerado pelo cluster*. Quem clonar não reproduz o arquivo sem um cluster rodando |
+| **Duplica a fonte da verdade** | a origem é o Secret `homelab-ca`; o repo passava a ter uma segunda cópia, que podia divergir |
+| **Continua sendo sincronização manual** | a **natureza** do problema era a mesma da Opção A — só a frequência mudou |
+
+Com um agravante que só ficou claro depois: o arquivo era um **manifesto `.yaml`
+contendo um certificado**, num repositório cujo `.gitignore` já excluía `*.crt`,
+`*.key` e `*.pem`. A política existia — o formato do arquivo apenas a contornava.
+
+### A refatoração planejada: B + C
+
+A Opção B **não será descartada** — ela é o **pré-requisito** da C.
+
+A documentação do trust-manager alerta que apontar um `Bundle` **direto** para um
+Secret do cert-manager faz a nova raiz substituir a antiga **imediatamente** na
+rotação, destrustando certificados ainda em uso. A recomendação oficial é apontar
+para uma **raiz estável** — exatamente o que a Opção B criou.
+
+Além disso, o `Bundle` lê fontes `secret`/`configMap` do **namespace do
+trust-manager** (`cert-manager`), e a CA já mora lá. A restrição vira encaixe.
+
+A arquitetura final separa as duas responsabilidades:
+
+| Camada | Quem resolve |
+|---|---|
+| raiz **estável** | Opção B (`Certificate homelab-ca`, 10 anos) |
+| **distribuição** automática | Opção C (`Bundle` do trust-manager) |
+
+Resultado: **nenhum hardcode, nenhuma cópia manual.**
+
+### 10.2 O que foi feito
+
+| # | Passo | Arquivo / objeto |
+|---|---|---|
+| 1 | Application do trust-manager no ArgoCD (ns `cert-manager`) | `infrastructure/trust-manager/app.yaml` |
+| 2 | `Bundle` apontando para o Secret `homelab-ca` | bloco final de `infrastructure/cert-manager/ca.yaml` |
+| 3 | `keycloak-ca.yaml` e `keycloak-ca-app.yaml` **apagados** | — |
+| 4 | `extraVolumes` do Backstage apontando para `homelab-ca` | `infrastructure/backstage/app.yaml` |
+| 5 | `ConfigMap keycloak-ca` órfão removido do cluster | `kubectl -n backstage delete configmap keycloak-ca` |
+
+Evidências coletadas:
+
+```console
+$ kubectl get bundle homelab-ca
+NAME         CONFIGMAP TARGET   SECRET TARGET   SYNCED   AGE
+homelab-ca   ca.crt                                       1s
+
+$ kubectl get bundle homelab-ca -o jsonpath='{.status.conditions[0].message}'
+Successfully synced Bundle to all namespaces
+
+# o ConfigMap derivado existe em TODOS os namespaces:
+$ kubectl get configmap -A --field-selector metadata.name=homelab-ca | wc -l
+16        # 1 cabeçalho + 15 namespaces
+
+# impressão digital da CA distribuída == impressão digital da origem:
+$ kubectl -n backstage get configmap homelab-ca -o jsonpath='{.data.ca\.crt}' \
+  | openssl x509 -noout -subject -fingerprint -sha256
+subject=CN=homelab-ca
+sha256 Fingerprint=F9:B1:EE:DD:2F:8F:6D:E2:FF:AA:CF:5F:AD:A1:47:F0:8B:B2:44:00:36:BE:D6:1D:D9:C7:9B:80:27:24:EF:A3
+```
+
+E a prova de que o Pod passou a consumir essa CA — ver seções 7.3 e 7.3.1.
+
+### 10.3 O que surpreendeu (e vale para a próxima vez)
+
+**1. O `ConfigMap` é criado em TODOS os namespaces, por padrão.**
+Com `namespaceSelector` vazio, o `Bundle` distribui para o cluster inteiro — não
+só para `backstage`. São 15 namespaces aqui, incluindo `kube-system`. É o
+comportamento desejado (qualquer Pod pode confiar na CA interna), mas tem duas
+consequências: (a) existe um `ConfigMap` chamado `homelab-ca` em cada namespace,
+então um nome de ConfigMap igual em outra aplicação colidiria; (b) uma mudança de
+default do `namespaceSelector` numa versão futura do trust-manager alteraria isso
+de uma vez — é um dos motivos de a versão estar **fixada** em `v0.25.0`.
+
+**2. A ordem importa em dois níveis, e um deles estava invertido.**
+O `Bundle` é um CRD que **vem do próprio trust-manager**: sem o CRD instalado, o
+manifesto é recusado. E o trust-manager **depende do cert-manager** — ele usa um
+`Certificate` do cert-manager para o TLS do seu webhook (confirmado:
+`kubectl -n cert-manager get certificate` mostra `trust-manager`).
+
+A ordem correta é, portanto:
+
+```
+cert-manager  ->  trust-manager  ->  Bundle (homelab-ca)
+```
+
+Mas as `sync-wave` estavam em `trust-manager: 3` e `cert-manager: 4` — invertidas.
+Hoje isso é **inofensivo**, porque sem um "app of apps" as waves são apenas
+documentais (o próprio `ca-app.yaml` já registra isso). Numa implantação de
+cluster do zero, com app of apps, seria um erro real. As waves foram corrigidas
+para refletir a dependência.
+
+**3. `trust-manager` normaliza o PEM e remove o `\n` final.**
+O arquivo distribuído tem 553 bytes contra 554 da origem. Comparar por `shasum`
+acusa divergência onde não há diferença criptográfica — a comparação correta é por
+impressão digital (detalhes e comandos na seção 7.3.2).
+
+### 10.4 O que ficou pendente
+
+| Pendência | Por quê |
+|---|---|
+| **Aplicar a Application `cert-manager-ca`** | o `ca-app.yaml` existe no repo mas **nunca foi aplicado** — a CA, o `ClusterIssuer` e o `Bundle` foram criados por `kubectl apply` direto. Como o `ca-app.yaml` aponta para `targetRevision: main`, ele só funciona **depois do merge** (mesma convenção de `backstage-certificate` e `backstage-ingress`) |
+| **App of Apps** | é o que faz as `sync-wave` saírem do papel. Sem ele, o "botão único" continua sendo uma sequência manual de `kubectl apply` |
+| **Migrar os outros hosts** | `backstage.local`, `argocd.local`, `kiali`, `jaeger` e `grafana` seguem no `selfsigned-issuer`. Passando para `homelab-ca-issuer`, os avisos de browser somem com **uma** CA importada no Keychain em vez de várias |
+
+Nada disso invalida o que já foi feito: os passos são aditivos, não uma
+reescrita.

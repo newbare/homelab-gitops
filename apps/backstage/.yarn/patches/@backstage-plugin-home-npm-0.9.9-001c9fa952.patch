@@ -1,0 +1,84 @@
+diff --git a/dist/alpha.esm.js b/dist/alpha.esm.js
+index 25e370817c17b3c55b6245be91ad191c7ba6ba58..4bef6e543575276415167c20e8cddfb30e9b7868 100644
+--- a/dist/alpha.esm.js
++++ b/dist/alpha.esm.js
+@@ -101,8 +101,8 @@ const homePageToolkitWidget = HomePageWidgetBlueprint.makeWithOverrides({
+   *factory(originalFactory, { config }) {
+     yield* originalFactory({
+       name: "HomePageToolkit",
+-      title: "Toolkit",
+-      description: "A collection of useful links and tools",
++      title: "Ferramentas",
++      description: "Uma coleção de links e ferramentas úteis",
+       components: () => import('./homePageComponents/Toolkit/index.esm.js').then((m) => ({
+         Content: (props) => {
+           const iconsApi = useApi(iconsApiRef);
+@@ -122,8 +122,8 @@ const homePageStarredEntitiesWidget = HomePageWidgetBlueprint.make({
+   name: "starred-entities",
+   params: {
+     name: "HomePageStarredEntities",
+-    title: "Your Starred Entities",
+-    description: "Shows entities you have starred in the catalog",
++    title: "Suas entidades favoritas",
++    description: "Mostra as entidades que você favoritou no catálogo",
+     components: () => import('./homePageComponents/StarredEntities/index.esm.js').then((m) => ({
+       Content: m.Content
+     }))
+@@ -133,8 +133,8 @@ const homePageRandomJokeWidget = HomePageWidgetBlueprint.make({
+   name: "random-joke",
+   params: {
+     name: "HomePageRandomJoke",
+-    title: "Random Joke",
+-    description: "Shows a random programming joke",
++    title: "Piada aleatória",
++    description: "Mostra uma piada de programação aleatória",
+     components: () => import('./homePageComponents/RandomJoke/index.esm.js').then((m) => ({
+       Content: m.Content,
+       Settings: m.Settings,
+@@ -147,11 +147,11 @@ const homePageRandomJokeWidget = HomePageWidgetBlueprint.make({
+     },
+     settings: {
+       schema: {
+-        title: "Random Joke settings",
++        title: "Configurações da piada aleatória",
+         type: "object",
+         properties: {
+           defaultCategory: {
+-            title: "Category",
++            title: "Categoria",
+             type: "string",
+             enum: ["any", "programming", "dad"],
+             default: "any"
+@@ -165,8 +165,8 @@ const homePageMostVisitedWidget = HomePageWidgetBlueprint.make({
+   name: "most-visited",
+   params: {
+     name: "HomePageMostVisited",
+-    title: "Most Visited",
+-    description: "Shows your most frequently visited pages",
++    title: "Mais visitadas",
++    description: "Mostra as páginas que você mais visita",
+     components: () => import('./homePageComponents/VisitedByType/TopVisited.esm.js').then((m) => ({
+       Content: m.Content,
+       Actions: m.Actions,
+@@ -178,8 +178,8 @@ const homePageRecentlyVisitedWidget = HomePageWidgetBlueprint.make({
+   name: "recently-visited",
+   params: {
+     name: "HomePageRecentlyVisited",
+-    title: "Recently Visited",
+-    description: "Shows pages you have recently visited",
++    title: "Visitadas recentemente",
++    description: "Mostra as páginas que você visitou recentemente",
+     components: () => import('./homePageComponents/VisitedByType/RecentlyVisited.esm.js').then((m) => ({
+       Content: m.Content,
+       Actions: m.Actions,
+@@ -203,8 +203,8 @@ const homePageWorldClockWidget = HomePageWidgetBlueprint.makeWithOverrides({
+   *factory(originalFactory, { config }) {
+     yield* originalFactory({
+       name: "HomePageWorldClock",
+-      title: "World Clocks",
+-      description: "Displays clocks for configured time zones",
++      title: "Relógios mundiais",
++      description: "Exibe relógios para os fusos horários configurados",
+       components: () => import('./homePageComponents/WorldClock/index.esm.js').then((m) => ({
+         Content: () => /* @__PURE__ */ jsx(
+           m.WorldClock,

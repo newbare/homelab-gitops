@@ -1,0 +1,13 @@
+{
+  "searchBar.title": "Search",
+  "searchBar.placeholder": "Search in {{org}}",
+  "searchBar.clearButtonTitle": "Clear",
+  "searchFilter.allOptionTitle": "All",
+  "searchPagination.limitLabel": "Results per page:",
+  "searchPagination.limitText": "of {{num}}",
+  "noResultsDescription": "Sorry, no results were found",
+  "searchResultGroup.linkTitle": "See All",
+  "searchResultGroup.addFilterButtonTitle": "Add filter",
+  "searchResultPager.next": "Next",
+  "searchResultPager.previous": "Previous"
+}

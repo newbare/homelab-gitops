@@ -8,6 +8,7 @@ e (futuramente) observabilidade do cluster.
 
 - **URL:** https://backstage.local
 - **Auth:** **OIDC via Keycloak** (realm `resilience`) — desde a Fase 11
+- **Idioma:** **pt-BR apenas** (desde a Fase 12). O seletor de idioma foi **removido** de propósito — ver a seção *"O inglês ficou inconsistente"* em [`11-fase-12-i18n-pt-br.md`](./11-fase-12-i18n-pt-br.md)
 - **Ingress:** NGINX, com TLS self-signed (`backstage-tls`)
 
 ## 🗂️ Estrutura da documentação
@@ -23,7 +24,8 @@ e (futuramente) observabilidade do cluster.
 | [`06-referencias.md`](./06-referencias.md) | Links úteis |
 | [`07-fase-8-polish.md`](./07-fase-8-polish.md) | Jornada da Fase 8 (polish visual) |
 | [`09-fase-9-floci-terraform-lambda.md`](./09-fase-9-floci-terraform-lambda.md) | Jornada da Fase 9 |
-| [`10-fase-11-backstage-oidc.md`](./10-fase-11-backstage-oidc.md) | **Jornada da Fase 11 — login OIDC via Keycloak** |
+| [`10-fase-11-backstage-oidc.md`](./10-fase-11-backstage-oidc.md) | Jornada da Fase 11 — login OIDC via Keycloak |
+| [`11-fase-12-i18n-pt-br.md`](./11-fase-12-i18n-pt-br.md) | **Jornada da Fase 12 — interface em pt-BR (i18n)** |
 
 ### Documentos relacionados (fora desta pasta)
 
@@ -55,6 +57,7 @@ e (futuramente) observabilidade do cluster.
 | TechDocs | ⚠️ Configurado, sem docs |
 | Kubernetes plugin | ❌ Não configurado |
 | **Auth real (OIDC Keycloak)** | ✅ Fase 11 |
+| **Interface em pt-BR (i18n)** | ✅ 18/18 refs (873 msgs) — títulos de navegação seguem em inglês (literais do plugin) |
 | Permissões/RBAC por grupo | ❌ Grupos existem, sem permissões |
 | CSP (Random Joke) | ⚠️ Pendente |
 

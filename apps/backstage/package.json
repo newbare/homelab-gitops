@@ -50,7 +50,9 @@
   },
   "resolutions": {
     "@types/react": "^18",
-    "@types/react-dom": "^18"
+    "@types/react-dom": "^18",
+    "@backstage/plugin-scaffolder-react@npm:^2.0.3": "patch:@backstage/plugin-scaffolder-react@npm%3A2.0.3#~/.yarn/patches/@backstage-plugin-scaffolder-react-npm-2.0.3-ed37c8cda4.patch",
+    "@backstage/plugin-catalog@npm:^2.0.8": "patch:@backstage/plugin-catalog@npm%3A2.0.8#~/.yarn/patches/@backstage-plugin-catalog-npm-2.0.8-9ea28fb999.patch"
   },
   "prettier": "@backstage/cli/config/prettier",
   "lint-staged": {

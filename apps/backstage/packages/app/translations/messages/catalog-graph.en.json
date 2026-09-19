@@ -1,0 +1,23 @@
+{
+  "catalogGraphCard.title": "Relations",
+  "catalogGraphCard.deepLinkTitle": "View graph",
+  "catalogGraphPage.title": "Catalog Graph",
+  "catalogGraphPage.filterToggleButtonTitle": "Filters",
+  "catalogGraphPage.supportButtonDescription": "Start tracking your component in by adding it to the software catalog.",
+  "catalogGraphPage.simplifiedSwitchLabel": "Simplified",
+  "catalogGraphPage.mergeRelationsSwitchLabel": "Merge relations",
+  "catalogGraphPage.zoomOutDescription": "Use pinch & zoom to move around the diagram. Click to change active node, shift click to navigate to entity.",
+  "catalogGraphPage.curveFilter.title": "Curve",
+  "catalogGraphPage.curveFilter.curveStepBefore": "Step Before",
+  "catalogGraphPage.curveFilter.curveMonotoneX": "Monotone X",
+  "catalogGraphPage.directionFilter.title": "Direction",
+  "catalogGraphPage.directionFilter.leftToRight": "Left to right",
+  "catalogGraphPage.directionFilter.rightToLeft": "Right to left",
+  "catalogGraphPage.directionFilter.topToBottom": "Top to bottom",
+  "catalogGraphPage.directionFilter.bottomToTop": "Bottom to top",
+  "catalogGraphPage.maxDepthFilter.title": "Max depth",
+  "catalogGraphPage.maxDepthFilter.inputPlaceholder": "∞ Infinite",
+  "catalogGraphPage.maxDepthFilter.clearButtonAriaLabel": "clear max depth",
+  "catalogGraphPage.selectedKindsFilter.title": "Kinds",
+  "catalogGraphPage.selectedRelationsFilter.title": "Relations"
+}

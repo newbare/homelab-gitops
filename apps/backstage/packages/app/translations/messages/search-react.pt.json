@@ -1,0 +1,13 @@
+{
+    "searchBar.title": "Buscar",
+    "searchBar.placeholder": "Buscar em {{org}}",
+    "searchBar.clearButtonTitle": "Limpar",
+    "searchFilter.allOptionTitle": "Todos",
+    "searchPagination.limitLabel": "Resultados por página:",
+    "searchPagination.limitText": "de {{num}}",
+    "noResultsDescription": "Nenhum resultado encontrado",
+    "searchResultGroup.linkTitle": "Ver todos",
+    "searchResultGroup.addFilterButtonTitle": "Adicionar filtro",
+    "searchResultPager.next": "Próximo",
+    "searchResultPager.previous": "Anterior"
+}

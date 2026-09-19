@@ -1,0 +1,20 @@
+{
+    "workflow.noDescription": "Sem descrição",
+    "passwordWidget.content": "Este widget é inseguro. Use [`ui:field: Secret`](https://backstage.io/docs/features/software-templates/writing-templates/#using-secrets) em vez de `ui:widget: password`",
+    "scaffolderPageContextMenu.createLabel": "Criar",
+    "scaffolderPageContextMenu.moreLabel": "mais",
+    "scaffolderPageContextMenu.editorLabel": "Gerenciar templates",
+    "scaffolderPageContextMenu.actionsLabel": "Actions instaladas",
+    "scaffolderPageContextMenu.tasksLabel": "Lista de tarefas",
+    "scaffolderPageContextMenu.templatingExtensionsLabel": "Extensões de template",
+    "stepper.backButtonText": "Voltar",
+    "stepper.nextButtonText": "Avançar",
+    "stepper.createButtonText": "Criar",
+    "stepper.reviewButtonText": "Revisar",
+    "stepper.stepIndexLabel": "Etapa {{index, number}}",
+    "templateCategoryPicker.title": "Categorias",
+    "templateCard.noDescription": "Sem descrição",
+    "templateCard.chooseButtonText": "Escolher",
+    "cardHeader.detailBtnTitle": "Mostrar detalhes da entidade do template",
+    "templateOutputs.title": "Saída de texto"
+}

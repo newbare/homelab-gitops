@@ -33,6 +33,67 @@ spec:
         production: true
         proxy: edge
 
+        # ---------------------------------------------------------------------
+        # PROBES E RECURSOS — não usar os defaults do chart neste hardware.
+        # ---------------------------------------------------------------------
+        # O default do chart é `livenessProbe.periodSeconds: 1` com
+        # `failureThreshold: 3`: cerca de 15 segundos sem a porta responder e o
+        # kubelet MATA o Keycloak (SIGTERM -> exit 0 -> reinicia).
+        #
+        # Num nó AMD A10 compartilhado com Prometheus, Grafana, Jaeger, Istio e
+        # PostgreSQL, um engasgo de 15s é questão de tempo. E cada morte custa
+        # 1-3 minutos de `503` no Ingress — ou seja, TODO login naquela janela
+        # falha. Foi a causa do erro "OPError ... 503 Service Unavailable" que
+        # derrubou o teste de login em 2026-09-18.
+        #
+        # `startupProbe` vem DESABILITADO por padrão no chart. Habilitando, o
+        # liveness só começa a contar depois que o Keycloak sobe de verdade.
+        # ---------------------------------------------------------------------
+        livenessProbe:
+          enabled: true
+          initialDelaySeconds: 120
+          periodSeconds: 10 # era 1
+          timeoutSeconds: 5
+          failureThreshold: 6 # era 3 -> tolera ~60s de indisponibilidade
+          successThreshold: 1
+        readinessProbe:
+          enabled: true
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5 # era 1 (curto demais para um JVM sob carga)
+          failureThreshold: 6 # era 3
+          successThreshold: 1
+        startupProbe:
+          enabled: true # era false
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30 # 30 x 10s = 5 min de tolerância no boot
+          successThreshold: 1
+
+        # `requests` garantem uma fatia de CPU/memória. Sem reserva, o JVM sofria
+        # starvation sempre que outro workload apertava o nó — e starvation é o
+        # que faz o probe falhar.
+        #
+        # O `limits.memory` também serve para o JVM dimensionar o heap a partir
+        # dele: sem limite, o JVM enxerga a RAM DO NÓ (16 GB) e superdimensiona.
+        #
+        # O `limits.cpu` de 1000m é folgado — o Keycloak usa ~10m em repouso. Ele
+        # existe para conter um pico patológico, não para limitar o regime normal.
+        # Como o nó já tem 425% de CPU comprometida em limits, algum teto por pod
+        # é prudente.
+        #
+        # ⚠️ Este bloco é o ÚNICO `resources:` do arquivo. Houve um segundo (um
+        # duplicado, ao final) que o YAML resolvia silenciosamente pela última
+        # ocorrência. Chave duplicada em YAML não dá erro — só muda o resultado.
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+
         service:
           type: ClusterIP
           ports:
@@ -46,7 +107,12 @@ spec:
           pathType: Prefix
           tls: true
           annotations:
-            cert-manager.io/cluster-issuer: selfsigned-issuer
+            # CA interna do homelab (infrastructure/cert-manager/ca.yaml).
+            # Motivo: o selfsigned-issuer gera folha e raiz no mesmo certificado, então
+            # toda renovação (~90 dias) trocaria a âncora de confiança e invalidaria
+            # qualquer cópia feita para outro namespace.
+            # Ver docs/certificados/01-trust-anchor-interno.md
+            cert-manager.io/cluster-issuer: homelab-ca-issuer
 
         postgresql:
           enabled: false
@@ -58,14 +124,6 @@ spec:
           database: keycloak
           existingSecret: keycloak-postgresql
           existingSecretPasswordKey: password
-
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "250m"
-          limits:
-            memory: "1Gi"
-            cpu: "1000m"
 
         metrics:
           enabled: false

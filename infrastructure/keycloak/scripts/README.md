@@ -31,9 +31,13 @@ controlado e dry-run.
 CSV:
 
     username,email,firstName,lastName,role
-    jefferson.leite,jefferson@resiliencecloud.com.br,Jefferson,Leite,resilience-admins
+    fulano.silva,fulano@example.com,Fulano,Silva,resilience-devs
 
 XLSX: mesma estrutura de colunas, na primeira aba.
+
+> ⚠️ O exemplo acima (e o arquivo `data/users.example.csv`) usa dados
+> **fictícios**. Os dados reais ficam em `data/users.csv`, que é ignorado pelo
+> Git — este repositório é público, e nome/e-mail de pessoa é dado pessoal.
 
 Obrigatórias: username, email, role. Opcionais: firstName, lastName.
 
@@ -49,7 +53,7 @@ Obrigatórias: username, email, role. Opcionais: firstName, lastName.
 | `KEYCLOAK_CLIENT_SECRET` | Client secret (confidential)  | `********`                                           |
 | `KEYCLOAK_REDIRECT_URI`  | Redirect URI do client        | `https://backstage.local/api/auth/oidc/handler/frame` |
 | `KEYCLOAK_WEB_ORIGIN`    | Web origin do client          | `https://backstage.local`                            |
-| `REQUESTS_CA_BUNDLE`     | Certificado do Keycloak (TLS autoassinado) | `/tmp/keycloak-ca.crt`                   |
+| `REQUESTS_CA_BUNDLE`     | CA que assinou o TLS do Keycloak | `/tmp/homelab-ca.crt`                    |
 | `KEYCLOAK_TEMP_PASSWORD` | Senha temporária dos usuários | `Mudar@123`                                          |
 
 ## Uso
@@ -65,19 +69,28 @@ Obrigatórias: username, email, role. Opcionais: firstName, lastName.
 > `https://keycloak.local`. Antes o túnel era obrigatório e caía com frequência
 > (`lost connection to pod`), interrompendo o provisionamento no meio.
 
-**b) O certificado é autoassinado — o Python precisa confiar nele.**
+**b) O TLS é assinado pela CA interna do homelab — aponte o Python para ela.**
 
 O provisioner usa a biblioteca `requests`, que **valida** o certificado por padrão.
-Como o `ClusterIssuer` é `selfsigned-issuer`, a validação falha. Extraia o certificado
-do cluster e aponte o `requests` para ele:
+O `keycloak.local` é emitido pelo `ClusterIssuer` **`homelab-ca-issuer`** (mudou na
+Fase 11 — antes era `selfsigned-issuer`). A âncora de confiança, portanto, é a CA
+`homelab-ca`, que vive no ns `cert-manager`:
 
-    kubectl -n keycloak get secret keycloak.local-tls \
-      -o jsonpath='{.data.tls\.crt}' | base64 -d > /tmp/keycloak-ca.crt
+    kubectl -n cert-manager get secret homelab-ca \
+      -o jsonpath='{.data.tls\.crt}' | base64 -d > /tmp/homelab-ca.crt
 
-    export REQUESTS_CA_BUNDLE=/tmp/keycloak-ca.crt
+    export REQUESTS_CA_BUNDLE=/tmp/homelab-ca.crt
 
 > ⚠️ **Sem essa variável o erro será de SSL, não de credencial.** Se aparecer
 > `SSLError: certificate verify failed`, é isto — não é senha errada nem script quebrado.
+
+> ⚠️ **Extraia a CA, não o certificado folha.** Extrair `keycloak.local-tls` (a
+> folha) *também* funciona — mas por **fixação exata**, não por validação de
+> cadeia: o servidor apresenta exatamente aquele certificado, e ele está no trust
+> store. A diferença aparece na **renovação**: a folha troca a cada ~90 dias e a
+> cópia fixada fica velha, quebrando sem ninguém ter mexido em nada. A CA vale 10
+> anos. Verificado: com a folha e com a CA, `HTTP 200`; com um certificado sem
+> relação, `CERTIFICATE_VERIFY_FAILED`.
 >
 > Detalhes sobre certificados no laboratório: [`docs/certificados/`](../../../docs/certificados/).
 

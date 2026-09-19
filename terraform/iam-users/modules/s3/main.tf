@@ -84,35 +84,40 @@ resource "aws_s3_bucket_lifecycle_configuration" "this" {
 # ============================================
 # Migração de endereço — sem destruir/recriar
 # ============================================
-# O estado ficou com a chave = finalidade ("users"/"techdocs") porque a chave
-# passou a ser o NOME do bucket. Estes blocos movem o endereço no state em vez
-# de destruir/recriar. Podem ser removidos depois que o apply passar.
-moved {
-  from = aws_s3_bucket.this["users"]
-  to   = aws_s3_bucket.this["resilience-cloud-users"]
-}
+# Contexto histórico: o state ficou com a chave = finalidade ("users"/"techdocs")
+# porque a chave passou a ser o NOME do bucket. Estes blocos moveram o endereço
+# no state em vez de destruir/recriar, e já foram aplicados.
+#
+# Mantidos comentados por decisão de 2026-09-19, apenas como contexto histórico.
+# O Floci é efêmero e o state é local, então não há uso operacional previsto.
+# A deleção fica ELEITA PARA O FUTURO caso deixem de ser necessários: o rationale
+# também vive no commit dc1f080, então remover não apaga o porquê.
+# moved {
+#   from = aws_s3_bucket.this["users"]
+#   to   = aws_s3_bucket.this["resilience-cloud-users"]
+# }
 
-moved {
-  from = aws_s3_bucket.this["techdocs"]
-  to   = aws_s3_bucket.this["resilience-techdocs"]
-}
+# moved {
+#   from = aws_s3_bucket.this["techdocs"]
+#   to   = aws_s3_bucket.this["resilience-techdocs"]
+# }
 
-moved {
-  from = aws_s3_bucket_versioning.this["users"]
-  to   = aws_s3_bucket_versioning.this["resilience-cloud-users"]
-}
+# moved {
+#   from = aws_s3_bucket_versioning.this["users"]
+#   to   = aws_s3_bucket_versioning.this["resilience-cloud-users"]
+# }
 
-moved {
-  from = aws_s3_bucket_versioning.this["techdocs"]
-  to   = aws_s3_bucket_versioning.this["resilience-techdocs"]
-}
+# moved {
+#   from = aws_s3_bucket_versioning.this["techdocs"]
+#   to   = aws_s3_bucket_versioning.this["resilience-techdocs"]
+# }
 
-moved {
-  from = aws_s3_bucket_server_side_encryption_configuration.this["users"]
-  to   = aws_s3_bucket_server_side_encryption_configuration.this["resilience-cloud-users"]
-}
+# moved {
+#   from = aws_s3_bucket_server_side_encryption_configuration.this["users"]
+#   to   = aws_s3_bucket_server_side_encryption_configuration.this["resilience-cloud-users"]
+# }
 
-moved {
-  from = aws_s3_bucket_server_side_encryption_configuration.this["techdocs"]
-  to   = aws_s3_bucket_server_side_encryption_configuration.this["resilience-techdocs"]
-}
+# moved {
+#   from = aws_s3_bucket_server_side_encryption_configuration.this["techdocs"]
+#   to   = aws_s3_bucket_server_side_encryption_configuration.this["resilience-techdocs"]
+# }

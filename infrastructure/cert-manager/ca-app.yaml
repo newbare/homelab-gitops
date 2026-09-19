@@ -26,10 +26,18 @@ metadata:
   name: cert-manager-ca
   namespace: argocd
   annotations:
-    # Wave baixa: a CA é pré-requisito de quem confia nela.
-    # (Ordem entre Applications só tem efeito quando existir um "app of apps" —
-    #  item de backlog do repo. Hoje o valor é apenas documental.)
-    argocd.argoproj.io/sync-wave: "3"
+    # ⚠️ Wave 6 — NÃO é wave baixa, apesar de a CA ser pré-requisito de quem
+    #    confia nela. Motivo: este `ca.yaml` também declara o `Bundle`, e o
+    #    `Bundle` é um CRD que vem do trust-manager. São DOIS pré-requisitos:
+    #
+    #      cert-manager (wave 4)  ->  trust-manager (wave 5)  ->  este (wave 6)
+    #         CRDs Certificate            CRD Bundle
+    #         e ClusterIssuer
+    #
+    #    Com wave menor, o `Bundle` seria recusado por CRD ausente.
+    #    (Ordem entre Applications só tem efeito quando existir um "app of apps" —
+    #     item de backlog do repo. Hoje o valor é apenas documental.)
+    argocd.argoproj.io/sync-wave: "6"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:

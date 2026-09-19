@@ -1,0 +1,99 @@
+# trust-manager — distribuição declarativa de trust bundles no cluster.
+#
+# ---------------------------------------------------------------------------
+# POR QUE ESTE COMPONENTE EXISTE AQUI
+# ---------------------------------------------------------------------------
+# O Kubernetes NÃO permite montar Secret/ConfigMap de outro namespace. Isso cria
+# um problema estrutural: a CA interna nasce no ns `cert-manager` (onde o
+# cert-manager a emite) e precisa existir no ns `backstage` (onde o Pod a monta).
+#
+# Sem um controller, a única saída é COPIAR o certificado à mão — e um valor
+# GERADO PELO CLUSTER gravado no Git quebra num bootstrap do zero, porque a CA
+# nova tem chave nova e a cópia antiga passa a estar errada.
+#
+# O trust-manager resolve isso do jeito que o Kubernetes faz: um CONTROLLER com
+# loop de reconciliação. Ele lê a fonte (autoritativa, dentro do cluster) e
+# escreve o ConfigMap nos namespaces alvo — sem valor fixo em lugar nenhum.
+#
+#   Sem controller:  valor derivado -> copiado à mão -> versionado no Git -> ❌ não replica
+#   Com controller:  valor derivado -> reconciliado   -> nunca versionado  -> ✅ replica
+#
+# Documento com a análise completa: docs/certificados/01-trust-anchor-interno.md
+#
+# ---------------------------------------------------------------------------
+# ESCOLHAS DESTE VALUES
+# ---------------------------------------------------------------------------
+#   crds.enabled: true     -> o CRD `Bundle` vem junto (é o default, explícito aqui)
+#   secretTargets.enabled  -> DEIXADO EM false (default). Habilitar daria ao
+#                             trust-manager permissão de LEITURA em TODOS os
+#                             Secrets do cluster. Não precisamos: distribuímos
+#                             apenas ConfigMaps.
+#
+# O trust namespace (onde ele lê as fontes `secret`/`configMap`) é o namespace
+# do release — `cert-manager`, exatamente onde a nossa CA mora. Encaixe natural.
+#
+# ---------------------------------------------------------------------------
+# VERSÃO FIXADA
+# ---------------------------------------------------------------------------
+# `v0.25.0`. O chart instalado via repo HTTPS `https://charts.jetstack.io` (o
+# mesmo formato dos charts de keycloak e backstage neste repo).
+#
+# ⚠️ Manter FIXADO: a doc do trust-manager anuncia que uma versão futura mudará
+#    o comportamento de `namespaceSelector` vazio. Enquanto estiver fixado, a
+#    mudança só nos alcança quando decidirmos subir de versão — e aí lemos o
+#    release note antes.
+# ---------------------------------------------------------------------------
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: trust-manager
+  namespace: argocd
+  annotations:
+    # ⚠️ Wave DEPOIS do cert-manager (que está na wave 4) — e não é arbitrário:
+    #    o trust-manager usa um `Certificate` do PRÓPRIO cert-manager para o TLS
+    #    do seu webhook. Comprovado no cluster:
+    #
+    #      $ kubectl -n cert-manager get certificate
+    #      NAME            READY   SECRET              AGE
+    #      trust-manager   True    trust-manager-tls   52m
+    #
+    #    Numa instalação de cluster do zero, uma wave menor faria o chart falhar
+    #    por falta do CRD `Certificate`.
+    #
+    #    Cadeia de dependência: cert-manager (4) -> trust-manager (5) -> Bundle,
+    #    que vive em `infrastructure/cert-manager/ca.yaml` (6).
+    #    (Ordem entre Applications só vale com um "app of apps" — backlog do repo.)
+    argocd.argoproj.io/sync-wave: "5"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://charts.jetstack.io
+    chart: trust-manager
+    targetRevision: v0.25.0
+    helm:
+      releaseName: trust-manager
+      values: |
+        # O CRD `Bundle` é instalado junto com o chart.
+        crds:
+          enabled: true
+
+        # NÃO habilitar sem necessidade: concede leitura de TODOS os Secrets.
+        secretTargets:
+          enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      # Mesmos syncOptions do Application `cert-manager`
+      # (infrastructure/observability/cert-manager.yaml): o ns `cert-manager`
+      # pode não existir ainda num bootstrap, e o CRD `Bundle` se beneficia de
+      # Server-Side Apply.
+      - CreateNamespace=true
+      - ServerSideApply=true

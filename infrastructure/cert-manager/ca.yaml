@@ -71,3 +71,41 @@ metadata:
 spec:
   ca:
     secretName: homelab-ca
+---
+# ---------------------------------------------------------------------------
+# DISTRIBUIÇÃO DA CA — declarativa, via trust-manager
+# ---------------------------------------------------------------------------
+# O Kubernetes NÃO monta Secret de outro namespace. Sem um controller, a CA
+# teria que ser COPIADA à mão para o ns `backstage` — e um valor gerado pelo
+# cluster gravado no Git quebra num bootstrap do zero, porque a CA nova tem
+# chave nova e a cópia antiga passa a estar errada.
+#
+# Este `Bundle` (CRD do trust-manager, instalado por
+# `infrastructure/trust-manager/app.yaml`) faz o controller reconciliar:
+#
+#   fonte:  Secret `homelab-ca` no ns `cert-manager`
+#   alvo:   ConfigMap `homelab-ca`, chave `ca.crt`
+#
+# O ConfigMap gerado tem o MESMO NOME do Bundle (`homelab-ca`).
+#
+# `namespaceSelector` vazio = sincroniza em TODOS os namespaces — proposital:
+# qualquer workload futuro que precise confiar na CA interna já a encontra
+# montada, sem configuração adicional.
+#
+# ⚠️ Isto SUBSTITUI a versão anterior, em que o certificado da CA era copiado à
+#    mão para `infrastructure/backstage/keycloak-ca.yaml`. Aquele arquivo foi
+#    removido: certificado gerado não é dado que se versiona.
+# ---------------------------------------------------------------------------
+apiVersion: trust.cert-manager.io/v1alpha1
+kind: Bundle
+metadata:
+  name: homelab-ca
+spec:
+  sources:
+    - secret:
+        # Lido no "trust namespace" do trust-manager = `cert-manager`.
+        name: homelab-ca
+        key: tls.crt
+  target:
+    configMap:
+      key: ca.crt

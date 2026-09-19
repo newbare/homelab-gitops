@@ -26,6 +26,10 @@ output "lambda_role_arn" {
   value = module.iam.lambda_role_arn
 }
 
+output "techdocs_publisher_role_arn" {
+  value = module.iam.techdocs_publisher_role_arn
+}
+
 output "identity_store_id" {
   value = module.sso.identity_store_id
 }

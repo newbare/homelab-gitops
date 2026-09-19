@@ -12,6 +12,9 @@ module "iam" {
   project_name = var.project_name
   environment  = var.environment
   bucket_arn   = module.s3.bucket_arns["resilience-cloud-users"]
+
+  # Bucket do TechDocs: a policy do publisher é escopada nele.
+  techdocs_bucket_arn = module.s3.bucket_arns["resilience-techdocs"]
 }
 
 module "lambda" {

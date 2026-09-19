@@ -248,9 +248,55 @@ o que já prepara o terreno — mas **a F1 não implementa a restrição**.
 
 ---
 
-## 10. Próximo passo
+## 10. Resultado da implementação (Fase 3)
 
-✅ D1 a D6 resolvidos e os nomes de `Group` obtidos.
+**Status: concluída.** Três incrementos, cada um verificado contra o banco
+(`backstage_plugin_catalog.final_entities`), não contra a tela.
 
-Falta apenas a sua confirmação em **D2** e **D4**, que segui por recomendação
-(§7). Confirmado isso, Fase 3 — implementação, começando pelo Incremento 1.
+| Incremento | Commit | O que provou |
+|---|---|---|
+| 1 — ligar o fio | `61d4535` | A entidade `bookinfo` existia no repo e nenhuma location a lia. `component:default/bookinfo` entrou |
+| 2 — modelo completo | `b199716` | 18 entidades: Domain, 5 Systems, 11 Components, 1 Resource |
+| 3 — limpar exemplos | `f7f8496` | `bookinfo` corrigido e o exemplo morto neutralizado |
+
+**Estado final do catálogo:** 29 entidades — 12 `Component`, 5 `System`, 1 `Domain`,
+1 `Resource`, 3 `Group`, 4 `User`, 3 `Location`.
+
+### Achados operacionais que valem para as próximas fases
+
+1. **A ingestão leva ~2,5 min, não segundos.** Diagnostiquei um falso bug por
+   checar em 80s. A cadência de refresh das locations é de ~2,5 min
+   (`refresh_state.next_update_at`). **Medir duas vezes antes de diagnosticar.**
+2. **Config errada dá erro de owner em silêncio.** O `bookinfo` conviveu com
+   `owner: guests` — grupo inexistente — sem erro visível; a relação `ownedBy`
+   simplesmente não tinha destino.
+3. **Anotação sem lastro polui log.** O `backstage.io/techdocs-ref` sem
+   `mkdocs.yml` gerava 404 por ciclo no log da busca.
+4. **`catalog.rules` substitui o default.** `Domain` teve de ser acrescentado
+   explicitamente, senão as entidades seriam descartadas sem aviso.
+5. **`ImagePullBackOff` reapareceu** (terceira vez: v24, v27 e v27 de novo),
+   sempre timeout IPv6 contra o Docker Hub. Retry resolve, mas é MTTR queimado
+   em algo previsível — ver §9.
+6. **Dependência descoberta:** o backend do Kubernetes **não inicializou**
+   (`valid kubernetes config is missing`). Como o plugin do ArgoCD exige os
+   plugins de Kubernetes, essa é uma dependência da fase dele.
+7. **Permissões estão desligadas** — `permission.enabled` não é `true`, e o
+   backend loga isso. Reforça §9.1.
+
+### O que continua fora desta fase
+
+Plugin do ArgoCD, TechDocs, autorização (§9.1) e descoberta automática pelo
+GitHub. Nenhum deles foi tocado.
+
+---
+
+## 11. Próximo passo
+
+Decidir qual das fases restantes vem primeiro. Candidatas, em ordem de dor:
+
+1. **Backup do PostgreSQL** — não é Backstage, é o achado 🔴 da auditoria
+   (`docs/auditoria/02-relatorio-auditoria.md`), e continua aberto.
+2. **`ImagePullBackOff`** — atacar a causa, não o sintoma.
+3. **Autorização** — o requisito "só admins veem infra".
+4. **Plugin do ArgoCD** — depende de configurar o backend do Kubernetes antes.
+5. **TechDocs** — depende de `runIn: docker` → `local` e de decidir o publisher.

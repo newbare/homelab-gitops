@@ -180,15 +180,38 @@ existe.
 
 | # | Decisão | Opções |
 |---|---|---|
-| **T1** | Caminho de geração | (a) imagem custom com Python+mkdocs · (b) `builder: external` + Job in-cluster |
-| **T2** | Publisher | (a) `local` (efêmero — perde no restart) · (b) `awsS3` no Floci |
-| **T3** | Escopo do que publicar | (a) só `docs/backstage/` · (b) o `docs/` inteiro |
+| **T1** | Caminho de geração | ✅ **DECIDIDO (2026-09-19)**: (b) `builder: external` + Job in-cluster — o Pod não tem mkdocs, python3 nem docker |
+| **T2** | Publisher | ✅ **DECIDIDO (2026-09-19)**: (b) `awsS3` apontando para o Floci — ver 6.1 |
+| **T3** | Escopo do que publicar | ✅ **DECIDIDO (2026-09-19)**: (b) o `docs/` inteiro |
 | **T4** | Bucket | ✅ **RESOLVIDO (2026-09-19)**: `resilience-techdocs` — versionamento `Enabled`, SSE `AES256`, transição 30d → `ONEZONE_IA`, **sem expiração** de objeto |
-| **T5** | Um dono ou um por componente | (a) **um** `Component type: documentation` + 12 referências via `techdocs-entity` · (b) TechDocs em cada Component |
+| **T5** | Um dono ou um por componente | ✅ **DECIDIDO (2026-09-19)**: (a) **um** `Component type: documentation` + 12 referências via `techdocs-entity` |
 
-**Recomendação:** T1 = (b), T2 = (b), T3 = (b), **T5 = (a)**.
+### 6.1 T2 — a config real do publisher `awsS3` (a doc oficial tem uma lacuna)
 
-**Sobre T5:** a opção (a) é a que a doc descreve para *"complex systems where they
+A página oficial
+[Using Cloud Storage for TechDocs generated files](https://backstage.io/docs/features/techdocs/using-cloud-storage)
+documenta apenas `bucketName`, `region`, `accountId` e as formas de credencial.
+**Ela não menciona `endpoint` nem `s3ForcePathStyle`** — lendo só ela, apontar o
+publisher para o Floci parece gambiarra.
+
+Não é. O código da nossa versão lê os dois campos:
+
+- `apps/backstage/node_modules/@backstage/plugin-techdocs-node/dist/stages/publish/awsS3.cjs.js`
+  - linha 89: `config.getOptionalString('techdocs.publisher.awsS3.endpoint')`
+  - linha 95: `config.getOptionalBoolean('techdocs.publisher.awsS3.s3ForcePathStyle')`
+- e repassa direto ao client:
+  `new S3Client({ ...endpoint && { endpoint }, ...forcePathStyle && { forcePathStyle } })`
+- o `CHANGELOG.md` do próprio pacote registra a origem: *"Adding optional config to
+  enable S3-like API for tech-docs using s3ForcePathStyle option"* — o campo nasceu
+  para APIs S3-compatíveis.
+
+Campos aceitos (extraídos do código, não da página): `bucketName` (obrigatório),
+`region`, `endpoint`, `s3ForcePathStyle`, `bucketRootPath`, `accountId`,
+`credentials`, `sse`, `httpsProxy`, `maxAttempts`.
+
+### 6.2 T5 — por que um dono só
+
+A opção (a) é a que a doc descreve para *"complex systems where they
 share a single repo, and likely a single TechDoc location"* — e evita 12 builds do
 mesmo site. A opção (b) só faria sentido se cada componente tivesse documentação
 própria, o que não é o caso.

@@ -5,6 +5,69 @@ Backstage um `Group` por role e um `User` por pessoa.
 
 ---
 
+## O fluxo, de ponta a ponta
+
+```
+   ┌────────────────────────────────────────────────────────────────────┐
+   │  FORA DO GIT — infrastructure/keycloak/scripts/data/users.csv      │
+   │  (regra `data/users.csv` no .gitignore)                            │
+   │                                                                    │
+   │   username,email,firstName,lastName,role                           │
+   │   fulano.silva,fulano@dominio,Fulano,Silva,role-x                  │
+   └───────────────────────────────┬────────────────────────────────────┘
+                                   │
+                 UMA fonte ────────┴─────── dois consumidores
+                                   │
+        ┌──────────────────────────┴──────────────────────────┐
+        │                                                     │
+        ▼                                                     ▼
+ ┌────────────────────┐                       ┌─────────────────────────┐
+ │ Keycloak           │                       │ generate-catalog.py     │
+ │ provisioner Python │                       │ Python, stdlib, sem venv│
+ │ → Admin API        │                       │ → YAML no stdout        │
+ └─────────┬──────────┘                       └────────────┬────────────┘
+           │                                             │
+           │                                             │ pipe
+           ▼                                             ▼
+ ┌────────────────────┐                       ┌─────────────────────────┐
+ │ realm resilience   │                       │ kubectl apply -f -      │
+ │ 4 users, 3 roles   │                       │ (nada escrito no disco) │
+ └─────────┬──────────┘                       └────────────┬────────────┘
+           │                                             ▼
+           │                             ┌──────────────────────────────┐
+           │                             │ ConfigMap                    │
+           │                             │ backstage-catalog-users      │
+           │                             │  users.yaml = 3 Group+4 User │
+           │                             └───────────────┬──────────────┘
+           │                                             │ volume
+           │                                             ▼
+           │                              /etc/backstage-catalog/users.yaml
+           │                                             │
+           │  login OIDC                                 │
+           ▼                                             ▼
+ ┌─────────────────────────────────────────────────────────────────────┐
+ │  Backstage                                                          │
+ │   1. usuário clica "Entrar com Keycloak"                            │
+ │   2. Keycloak devolve o e-mail no token                             │
+ │   3. resolver:  profile.email.split('@')[0]  →  "fulano"            │
+ │   4. acha  user:default/fulano  no catálogo  →  entra               │
+ └─────────────────────────────────────────────────────────────────────┘
+```
+
+O resumo em quatro decisões — cada uma detalhada na sua seção:
+
+| Decisão | Por quê | Seção |
+|---|---|---|
+| **Uma fonte, dois consumidores** | duas listas podiam divergir — o usuário existir no Keycloak e não conseguir logar | §2 |
+| **Gerador em vez de manifesto** | o que se versiona é o *programa*; o dado entra só na execução | §1, §4 |
+| **Pipe em vez de arquivo temporário** | o YAML com dado pessoal **nunca toca o disco** | §3 |
+| **Derivação verificada na fonte** | o nome da entidade é a parte local do e-mail, e tem formato obrigatório | §4, §5.2 |
+
+⚠️ O preço está na §7: este é o **único passo do fluxo que não é puramente
+GitOps**, e é uma escolha consciente.
+
+---
+
 ## 1. Por que este script existe
 
 O Backstage precisa de entidades `User` e `Group` no catálogo por dois motivos:

@@ -279,7 +279,13 @@ spec:
             # PROVISIONADO (ver comentário em extraVolumes) — não é versionado.
             catalog:
               rules:
-                - allow: [Component, System, API, Resource, Location, User, Group, Template]
+                # ⚠️ Esta lista SUBSTITUI o default do Backstage — não complementa.
+                # A doc: "if the `catalog.rules` key is present it will replace the
+                # default value". Cada kind que precisarmos tem de estar aqui,
+                # senão a entidade é DESCARTADA EM SILÊNCIO, sem erro visível.
+                #
+                # `Domain` entrou no Incremento 2 (decisão D1 do plano).
+                - allow: [Component, System, API, Resource, Location, User, Group, Template, Domain]
               locations:
                 # PROVISIONADO (fora do Git) — um Group por role e um User por
                 # pessoa, gerado do users.csv do Keycloak.
@@ -303,6 +309,14 @@ spec:
                 # separando as duas variáveis.
                 - type: url
                   target: https://github.com/newbare/homelab-gitops/blob/main/apps/bookinfo/catalog-info.yaml
+
+                # Incremento 2 (F1): o modelo completo — Domain `resilience`,
+                # 5 Systems, 11 Components e o Resource `postgresql`.
+                #
+                # O bookinfo NÃO se repete no arquivo central: nome duplicado
+                # faz o Backstage processar um e descartar o outro, em silêncio.
+                - type: url
+                  target: https://github.com/newbare/homelab-gitops/blob/main/catalog/catalog-info.yaml
             integrations:
               github:
                 - host: github.com

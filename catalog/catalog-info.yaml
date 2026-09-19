@@ -1,0 +1,353 @@
+# Catálogo do laboratório Resilience
+#
+# Fonte de verdade das entidades de plataforma do homelab-gitops.
+#
+# ── POR QUE UM ARQUIVO SÓ ────────────────────────────────────────────────
+# Decisão D6 do plano (docs/backstage/13-plano-catalogo.md): um lugar central
+# para revisar, em vez de espalhar catalog-info.yaml por diretório.
+#
+# ── O QUE **NÃO** ESTÁ AQUI, E POR QUÊ ───────────────────────────────────
+# • bookinfo        → já tem entidade própria em apps/bookinfo/catalog-info.yaml.
+#                     Duplicar aqui criaria nome repetido, e a doc avisa que
+#                     nesse caso "one will be processed and all others skipped".
+# • namespaces, backstage-ingress, backstage-certificate, cert-manager-ca
+#                   → são manifestos de ORQUESTRAÇÃO, não software nem
+#                     infraestrutura. Decisão D4, ancorada na definição oficial
+#                     de Resource ("infrastructure a component needs to operate
+#                     at runtime, like BigTable databases, S3 buckets or CDNs").
+#
+# ── POR QUE OPERATOR E CR SÃO UM COMPONENTE SÓ ───────────────────────────
+# Decisão D3: o ArgoCD agrupa por COMO INSTALA (operator e CR em Application
+# separadas). O catálogo agrupa por O QUE É. istio, kiali e jaeger aparecem
+# aqui como produto único, não como par operator+instância.
+#
+# ── ⚠️ ANOTAÇÕES argocd/app-name ─────────────────────────────────────────
+# Só estão presentes onde há EXATAMENTE UMA Application correspondente.
+# istio (3 apps), kiali (2) e jaeger (2) ficam SEM anotação de propósito: o
+# plugin do ArgoCD (@backstage-community/plugin-argocd) proíbe usar
+# `app-name` e `app-selector` juntos, e essas entidades precisarão de
+# `app-selector` quando a fase do plugin chegar. O plugin NÃO está instalado,
+# então nada disso tem efeito hoje — é preparação documentada.
+
+---
+# ══════════════════════════════════════════════════════════════════════════
+# Domain — topo da árvore. Requer `Domain` no catalog.rules.allow, senão é
+# descartado em SILÊNCIO (a doc: "if the catalog.rules key is present it will
+# replace the default value").
+# ══════════════════════════════════════════════════════════════════════════
+apiVersion: backstage.io/v1alpha1
+kind: Domain
+metadata:
+  name: resilience
+  title: Resilience
+  description: Laboratório homelab — a plataforma inteira, do cluster às aplicações
+  tags:
+    - homelab
+    - platform
+spec:
+  owner: resilience-admins
+
+---
+# ══════════════════════════════════════════════════════════════════════════
+# Systems — agrupamento funcional. Decisão D2: 5 sistemas.
+# A doc marca System/Domain como conceitos OPCIONAIS de categorização, e a
+# definição canônica fala em "exposes one or several public APIs" — o que a
+# infraestrutura não faz com rigor. Está mantido por escolha do adotante,
+# registrada em docs/backstage/13-plano-catalogo.md §7.
+# ══════════════════════════════════════════════════════════════════════════
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: plataforma-gitops
+  title: Plataforma GitOps
+  description: Reconciliação declarativa e portal do desenvolvedor
+  tags:
+    - gitops
+spec:
+  owner: resilience-admins
+  domain: resilience
+  type: service
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: identidade
+  title: Identidade
+  description: Autenticação, autorização e o estado que sustenta as duas
+spec:
+  owner: resilience-admins
+  domain: resilience
+  type: service
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: malha-de-servico
+  title: Malha de Serviço
+  description: Tráfego leste-oeste, mTLS e visibilidade da malha
+  tags:
+    - istio
+    - service-mesh
+spec:
+  owner: resilience-admins
+  domain: resilience
+  type: service
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: observabilidade
+  title: Observabilidade
+  description: Métricas, tracing e os painéis que os expõem
+spec:
+  owner: resilience-admins
+  domain: resilience
+  type: service
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: rede-e-seguranca
+  title: Rede e Segurança
+  description: Balanceamento, PKI interna e métricas de recurso do cluster
+spec:
+  owner: resilience-admins
+  domain: resilience
+  type: service
+
+---
+# ══════════════════════════════════════════════════════════════════════════
+# Components
+# ══════════════════════════════════════════════════════════════════════════
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: argocd
+  title: Argo CD
+  description: >-
+    Motor de reconciliação GitOps. Instalado por Helm fora da lista de
+    Applications (não se gerencia), por isso não tem argocd/app-name.
+  tags:
+    - gitops
+    - cncf
+spec:
+  type: service
+  lifecycle: production
+  owner: resilience-admins
+  system: plataforma-gitops
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: backstage
+  title: Resilience Cloud Portal
+  description: Portal do desenvolvedor — catálogo, templates e documentação
+  annotations:
+    argocd/app-name: backstage
+  tags:
+    - developer-portal
+    - cncf
+spec:
+  type: website
+  lifecycle: production
+  owner: resilience-admins
+  system: plataforma-gitops
+  # Dependência real: o Backstage guarda catálogo e sessões no PostgreSQL, e
+  # confia na CA interna que o trust-manager distribui.
+  dependsOn:
+    - resource:default/postgresql
+    - component:default/trust-manager
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: keycloak
+  title: Keycloak
+  description: Identity provider — OIDC para o Backstage e os demais serviços
+  annotations:
+    argocd/app-name: keycloak
+  tags:
+    - identity
+    - oidc
+spec:
+  type: service
+  lifecycle: production
+  owner: resilience-admins
+  system: identidade
+  dependsOn:
+    - resource:default/postgresql
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: istio
+  title: Istio
+  description: >-
+    Malha de serviço — base, control plane (istiod) e gateway de entrada.
+    Agrupa as Applications istio-base, istiod e istio-gateway.
+  tags:
+    - service-mesh
+    - cncf
+spec:
+  type: service
+  lifecycle: production
+  owner: resilience-admins
+  system: malha-de-servico
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: kiali
+  title: Kiali
+  description: >-
+    Console da malha — topologia, saúde e tráfego. Agrupa as Applications
+    kiali e kiali-operator (operator como mecanismo, CR como instância).
+  tags:
+    - service-mesh
+    - observability
+spec:
+  type: service
+  lifecycle: production
+  owner: resilience-admins
+  system: malha-de-servico
+  dependsOn:
+    - component:default/istio
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: prometheus
+  title: Prometheus
+  description: >-
+    Stack de métricas e o Grafana que as expõe. Corresponde à Application
+    kube-prometheus-stack.
+  tags:
+    - observability
+    - cncf
+spec:
+  type: service
+  lifecycle: production
+  owner: resilience-admins
+  system: observabilidade
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: jaeger
+  title: Jaeger
+  description: >-
+    Tracing distribuído. Agrupa as Applications jaeger e jaeger-operator.
+  tags:
+    - observability
+    - tracing
+spec:
+  type: service
+  lifecycle: production
+  owner: resilience-admins
+  system: observabilidade
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: metallb
+  title: MetalLB
+  description: Balanceador de carga para cluster on-premise
+  annotations:
+    argocd/app-name: metallb
+  tags:
+    - networking
+    - cncf
+spec:
+  type: service
+  lifecycle: production
+  owner: resilience-admins
+  system: rede-e-seguranca
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: cert-manager
+  title: cert-manager
+  description: Emissão e renovação de certificados, incluindo a CA interna
+  annotations:
+    argocd/app-name: cert-manager
+  tags:
+    - security
+    - pki
+    - cncf
+spec:
+  type: service
+  lifecycle: production
+  owner: resilience-admins
+  system: rede-e-seguranca
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: trust-manager
+  title: trust-manager
+  description: >-
+    Distribui a CA interna (ConfigMap homelab-ca) para todos os namespaces.
+    Substituiu a cópia manual — commit 125e424.
+  annotations:
+    argocd/app-name: trust-manager
+  tags:
+    - security
+    - pki
+spec:
+  type: service
+  lifecycle: production
+  owner: resilience-admins
+  system: rede-e-seguranca
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: metrics-server
+  title: Metrics Server
+  description: Métricas de recurso do cluster, consumidas pelo HPA e pelo kubectl top
+  annotations:
+    argocd/app-name: metrics-server
+  tags:
+    - observability
+spec:
+  type: service
+  lifecycle: production
+  owner: resilience-admins
+  system: rede-e-seguranca
+
+---
+# ══════════════════════════════════════════════════════════════════════════
+# Resource — a definição oficial: "the infrastructure a component needs to
+# operate at runtime, like BigTable databases, Pub/Sub topics, S3 buckets".
+# Um banco é o caso exemplar.
+# ══════════════════════════════════════════════════════════════════════════
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: postgresql
+  title: PostgreSQL compartilhado
+  description: >-
+    Instância única que serve Backstage (catálogo e sessões) e Keycloak
+    (realms e usuários). É a dependência mais crítica do laboratório.
+  tags:
+    - database
+    - stateful
+spec:
+  type: database
+  owner: resilience-admins
+  system: identidade

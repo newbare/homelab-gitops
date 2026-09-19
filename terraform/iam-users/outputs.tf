@@ -1,9 +1,17 @@
 output "s3_bucket_name" {
-  value = module.s3.bucket_name
+  value = module.s3.bucket_names["resilience-cloud-users"]
 }
 
 output "s3_bucket_arn" {
-  value = module.s3.bucket_arn
+  value = module.s3.bucket_arns["resilience-cloud-users"]
+}
+
+output "techdocs_bucket_name" {
+  value = module.s3.bucket_names["resilience-techdocs"]
+}
+
+output "techdocs_bucket_arn" {
+  value = module.s3.bucket_arns["resilience-techdocs"]
 }
 
 output "lambda_function_name" {

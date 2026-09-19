@@ -12,6 +12,11 @@ backstage-tls.crt
 # Log de conversa / notas locais de sessão (não versionar)
 /historico.md
 
+# Carreira: avaliações e prompts pessoais.
+# NÃO versionar neste repo (público). Vira repo próprio, exposto no Backstage
+# via TechDocs.
+/carreira/
+
 # Node
 node_modules/
 .vscode/

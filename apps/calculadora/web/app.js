@@ -17,27 +17,304 @@
 
 const estado = { horas: 168, dados: null, expandidos: new Set(), modelo: null, descoberta: null };
 
-/* --------------------------------------------------------------------------
-   STACK DECLARADA — a lista que vira os selos da página.
+/* ==========================================================================
+   STACK DO LABORATÓRIO — o portfólio da ARQUITETURA, não só deste painel.
 
-   A coluna `nota` é a que interessa: ela diz o que a peça É e o que NÃO é.
-   "JavaScript puro — sem React" informa mais numa apresentação do que o logo
-   sozinho, e evita o mal-entendido de parecer que há framework aqui.
-   -------------------------------------------------------------------------- */
+   Cada peça declara três coisas, e a terceira é a que interessa numa
+   apresentação: o que ela PROPÕE dentro da arquitetura. Nome e logo sozinhos
+   não explicam por que a peça está ali.
+
+   O acervo do laboratório (Backstage/TechDocs) é linkado de dentro daqui: o
+   painel aponta para a documentação, e a documentação descreve o painel.
+   ========================================================================== */
+const ACERVO = 'https://backstage.local/docs/default/component/documentacao-resilience/';
+const linkAcervo = (caminho) => `${ACERVO}${caminho}/`;
+
 const STACK = [
-    { tec: 'python', nome: 'Python 3.13', papel: 'API e cálculo', nota: 'biblioteca padrão — sem Flask, sem FastAPI, sem pip no Pod' },
-    { tec: 'javascript', nome: 'JavaScript', papel: 'painel (SPA)', nota: 'puro — sem React, sem build, sem bundler' },
-    { tec: 'html5', nome: 'HTML5', papel: 'estrutura', nota: 'semântico e acessível por teclado' },
-    { tec: 'css3', nome: 'CSS', papel: 'identidade', nota: 'variáveis de marca do Backstage, sem Tailwind' },
-    { tec: 'openapiinitiative', nome: 'OpenAPI 3.1', papel: 'contrato', nota: 'spec escrita à mão antes do código (API first)' },
-    { tec: 'amazonaws', nome: 'AWS Price List', papel: 'fonte dos preços', nota: 'bulk público, sem credencial — 288 MB no EC2' },
-    { tec: 'kubernetes', nome: 'Kubernetes', papel: 'onde roda', nota: 'MicroK8s single-node on-premise' },
-    { tec: 'argo', nome: 'Argo CD', papel: 'entrega GitOps', nota: 'sync automático com prune + selfHeal' },
-    { tec: 'helm', nome: 'Helm', papel: 'empacotamento', nota: 'chart local no repositório, sem repo externo' },
-    { tec: 'nginx', nome: 'NGINX Ingress', papel: 'exposição', nota: 'TLS pelo cert-manager, self-signed interno' },
-    { tec: 'docker', nome: 'OCI', papel: 'runtime', nota: 'imagem OFICIAL python:3.13-alpine — sem Dockerfile' },
-    { tec: 'pytest', nome: 'pytest', papel: 'testes', nota: 'única dependência de teste; a app não tem nenhuma' },
-    { tec: 'git', nome: 'Git', papel: 'fonte da verdade', nota: 'git push é o deploy; nada de botão na console' }
+  {
+    grupo: 'Plataforma — onde tudo roda',
+    nota: 'Um node on-premise, com os addons que o MicroK8s já traz.',
+    itens: [
+      {
+        tec: 'kubernetes',
+        nome: 'MicroK8s',
+        versao: '1.35.6',
+        papel: 'O cluster single-node do laboratório',
+        proposta: 'Escolhido pelos addons prontos (DNS, storage, registry): num node só, remontar cada peça à mão seria estudo repetido, não estudo novo.',
+        doc: 'https://microk8s.io/docs'
+      },
+      {
+        tec: 'helm',
+        nome: 'Helm',
+        versao: '3.19.0',
+        papel: 'Empacota e parametriza tudo o que sobe',
+        proposta: 'É o formato de entrega: cada componente é um chart com values versionados, e quem renderiza é o ArgoCD. Nada de manifesto solto com valores espalhados.',
+        doc: 'https://helm.sh/docs/'
+      },
+      {
+        tec: 'nginx',
+        nome: 'NGINX Ingress',
+        versao: 'chart 4.15.1',
+        papel: 'A porta de entrada única do cluster',
+        proposta: 'Decide qual serviço atende cada nome — argocd.local, backstage.local, calculadora.local. É ele que faz "um IP, vários apps".',
+        doc: 'https://kubernetes.github.io/ingress-nginx/'
+      },
+      {
+        tec: null,
+        mono: 'LB',
+        nome: 'MetalLB',
+        versao: '0.16.1',
+        papel: 'Dá IP real da LAN aos serviços LoadBalancer',
+        proposta: 'Sem ele, nenhum *.local existiria: o endereço seria NodePort. Em modo L2 com a interface FIXADA (enp3s0), para não responder ARP na rede errada — está no troubleshooting do lab.',
+        doc: 'https://metallb.universe.tf/'
+      }
+    ]
+  },
+  {
+    grupo: 'Entrega — como o código chega no cluster',
+    itens: [
+      {
+        tec: 'argo',
+        nome: 'Argo CD',
+        versao: 'app 3.5.2',
+        papel: 'Reconcilia o cluster com o Git',
+        proposta: 'git push É o deploy: auto-sync com prune e selfHeal. Este painel foi entregue por ele, sem nenhum apply manual na aplicação.',
+        doc: 'https://argo-cd.readthedocs.io/'
+      },
+      {
+        tec: 'git',
+        nome: 'Git / GitHub',
+        versao: 'fonte da verdade',
+        papel: 'Onde vive a intenção do ambiente',
+        proposta: 'Nada existe no cluster que não exista no histórico — e a branch diz quais arquivos cada assunto tocou. É o artefato de auditoria.',
+        doc: 'https://git-scm.com/doc'
+      },
+      {
+        tec: 'terraform',
+        nome: 'Terraform',
+        versao: '1.11.3 · AWS 5.100',
+        papel: 'O que é da AWS e precisa ser declarado',
+        proposta: 'Buckets, IAM e SSO nascem daqui. O mesmo stack aponta para o emulador ou para a conta real sem trocar uma linha de código — só variável de ambiente.',
+        doc: 'https://developer.hashicorp.com/terraform/docs'
+      }
+    ]
+  },
+  {
+    grupo: 'Malha de serviço',
+    itens: [
+      {
+        tec: 'istio',
+        nome: 'Istio',
+        versao: '1.30.4',
+        papel: 'mTLS, roteamento e telemetria sem tocar no código',
+        proposta: 'Aqui ele sustenta o Bookinfo como bancada de estudo de tráfego e de injeção de sidecar. IMPORTANTE: ESTE painel não está na malha — escolha declarada, para uma tela interna não pagar o custo de um sidecar.',
+        doc: 'https://istio.io/latest/docs/'
+      }
+    ]
+  },
+  {
+    grupo: 'Observabilidade — o laboratório que se observa',
+    itens: [
+      {
+        tec: 'prometheus',
+        nome: 'Prometheus',
+        versao: 'chart 91.2.1',
+        papel: 'Coleta e armazena as métricas',
+        proposta: 'A base de qualquer decisão de capacidade: sem série histórica, dimensionar vira chute com nome bonito.',
+        doc: 'https://prometheus.io/docs/'
+      },
+      {
+        tec: 'grafana',
+        nome: 'Grafana',
+        versao: 'chart 91.2.1',
+        papel: 'Lê o Prometheus e mostra',
+        proposta: 'Onde o número vira conversa. O banco dele já está no alvo da regra de ouro do lab: uma instância PostgreSQL compartilhada.',
+        doc: 'https://grafana.com/docs/'
+      },
+      {
+        tec: null,
+        mono: 'K',
+        nome: 'Kiali',
+        versao: 'op. 2.31.0',
+        papel: 'A topologia e a saúde da malha',
+        proposta: 'Responde "quem fala com quem" sem ler YAML — é o mapa do Istio, e o lugar onde uma quebra de mTLS aparece primeiro.',
+        doc: 'https://kiali.io/docs/'
+      },
+      {
+        tec: null,
+        mono: 'J',
+        nome: 'Jaeger',
+        versao: 'op. 2.57.0',
+        papel: 'Traço distribuído',
+        proposta: 'Segue a requisição por dentro dos serviços: é o que separa "está lento" de "está lento AQUI".',
+        doc: 'https://www.jaegertracing.io/docs/'
+      },
+      {
+        tec: null,
+        mono: 'MS',
+        nome: 'metrics-server',
+        versao: 'chart 3.14.0',
+        papel: 'Métricas de CPU e memória para o HPA',
+        proposta: 'Sem ele o HPA não consegue decidir escala — e foi por isso que Istio e gateway apareciam como Degraded no ArgoCD, o que está registrado no troubleshooting.',
+        doc: 'https://github.com/kubernetes-sigs/metrics-server'
+      }
+    ]
+  },
+  {
+    grupo: 'Identidade e dados',
+    itens: [
+      {
+        tec: 'keycloak',
+        nome: 'Keycloak',
+        versao: '26.0.7',
+        papel: 'O provedor de identidade',
+        proposta: 'O login do Backstage é OIDC contra ele. Usuários, roles e client saem de um provisioner idempotente — não de cliques no console, que ninguém reproduz.',
+        doc: 'https://www.keycloak.org/documentation'
+      },
+      {
+        tec: 'postgresql',
+        nome: 'PostgreSQL',
+        versao: '17-alpine',
+        papel: 'A instância única compartilhada',
+        proposta: 'Regra de ouro do laboratório: UM PostgreSQL, com database e user por aplicação. Nada de um banco por app — o custo de operar isso não paga.',
+        doc: 'https://www.postgresql.org/docs/'
+      }
+    ]
+  },
+  {
+    grupo: 'Portal e documentação',
+    itens: [
+      {
+        tec: 'backstage',
+        nome: 'Backstage',
+        versao: '1.54.0',
+        papel: 'O portal do desenvolvedor',
+        proposta: 'Catálogo, templates e o acervo. E é DELE que este painel herdou a identidade visual: os mesmos tokens de cor, sem paleta paralela.',
+        doc: 'https://backstage.io/docs/'
+      },
+      {
+        tec: null,
+        mono: 'TD',
+        nome: 'TechDocs',
+        versao: 'mkdocs 1.6.1',
+        papel: 'O acervo publicado',
+        proposta: 'O mkdocs roda DENTRO do cluster, em CronJob com imagens oficiais, e publica o site no bucket. A documentação viaja como artefato de deploy, não como anexo.',
+        doc: linkAcervo('praticas')
+      }
+    ]
+  },
+  {
+    grupo: 'Certificados',
+    itens: [
+      {
+        tec: null,
+        mono: 'CM',
+        nome: 'cert-manager',
+        versao: 'chart 1.21.2',
+        papel: 'Emite e renova o TLS de cada host',
+        proposta: 'Sem ele, cada aplicação exigiria certificado na mão e alguém lembrando do vencimento. Hoje cada host tem o seu, emitido por um ClusterIssuer self-signed interno.',
+        doc: 'https://cert-manager.io/docs/'
+      },
+      {
+        tec: null,
+        mono: 'TM',
+        nome: 'trust-manager',
+        versao: '0.25.0',
+        papel: 'Distribui a CA interna para os namespaces',
+        proposta: 'É o que faz o processo Node do Backstage confiar no certificado interno do Keycloak. O trust anchor das conversas entre serviços — e como ele foi validado está no acervo.',
+        doc: linkAcervo('certificados/01-trust-anchor-interno')
+      }
+    ]
+  },
+  {
+    grupo: 'AWS — onde o custo nasce',
+    itens: [
+      {
+        tec: 'amazonaws',
+        nome: 'AWS Price List',
+        versao: 'bulk oficial',
+        papel: 'A fonte dos preços deste painel',
+        proposta: 'Pública e sem credencial: NENHUM valor aqui foi digitado à mão, e o snapshot carrega a publicationDate que a própria AWS publica. Um preço digitado envelhece sem avisar; um preço com data, não.',
+        doc: 'https://docs.aws.amazon.com/aws-cost-management/latest/APIReference/API_Operations_AWS_Price_List.html'
+      },
+      {
+        tec: null,
+        mono: 'FL',
+        nome: 'Floci',
+        versao: '2.1.0',
+        papel: 'Emulador de AWS no laboratório',
+        proposta: 'Permite o Terraform rodar em casa, sem conta real: S3, IAM e Lambda respondem local. Ao migrar para a AWS de verdade ele desaparece da topologia — e com ele os skip_* do provider.',
+        doc: linkAcervo('aws')
+      }
+    ]
+  },
+  {
+    grupo: 'Este painel',
+    itens: [
+      {
+        tec: 'python',
+        nome: 'Python',
+        versao: '3.13',
+        papel: 'A API e o cálculo',
+        proposta: 'Biblioteca padrão apenas: sem Flask, sem FastAPI, sem pip dentro do Pod. É isso que permite a imagem ser a OFICIAL e o app rodar de dentro de ConfigMap.',
+        doc: 'https://docs.python.org/3/'
+      },
+      {
+        tec: 'javascript',
+        nome: 'JavaScript',
+        versao: 'ES2020',
+        papel: 'Este painel (SPA)',
+        proposta: 'Puro: sem React, sem build, sem bundler e sem CDN em runtime. Ler o repositório e ler o que roda é a mesma coisa — de propósito.',
+        doc: 'https://developer.mozilla.org/pt-BR/docs/Web/JavaScript'
+      },
+      {
+        tec: 'html5',
+        nome: 'HTML5 + CSS',
+        versao: 'sem framework',
+        papel: 'Estrutura e identidade visual',
+        proposta: 'Semântico e navegável por teclado. As cores são as MESMAS variáveis do tema do Backstage — trocar a marca continua sendo trocar num lugar só.',
+        doc: 'https://developer.mozilla.org/pt-BR/docs/Web/HTML'
+      },
+      {
+        tec: 'openapiinitiative',
+        nome: 'OpenAPI 3.1',
+        versao: 'spec 1.0.0',
+        papel: 'O contrato da API',
+        proposta: 'Escrita à mão ANTES do código (API first): é o artefato de desenho, e a tela /api/docs é ela renderizada. Importável em Swagger, Postman e gerador de cliente.',
+        doc: 'https://spec.openapis.org/oas/v3.1.0'
+      },
+      {
+        tec: 'docker',
+        nome: 'OCI',
+        versao: 'python:3.13-alpine',
+        papel: 'O runtime',
+        proposta: 'Imagem oficial com tag fixa: não existe Dockerfile próprio, nem registry para manter, nem tag para esquecer de subir.',
+        doc: 'https://hub.docker.com/_/python'
+      },
+      {
+        tec: 'pytest',
+        nome: 'pytest',
+        versao: '87 testes',
+        papel: 'A verificação',
+        proposta: 'A única dependência de teste — a aplicação não tem nenhuma. Na primeira execução ela reprovou três bugs reais, um deles uma conta 4x errada.',
+        doc: 'https://docs.pytest.org/'
+      }
+    ]
+  }
+];
+
+/* --------------------------------------------------------------------------
+   NO RADAR — o que ainda NÃO existe, declarado para não virar folclore.
+
+   Fica na página de propósito: portfólio que só mostra o pronto esconde a
+   direção. E apresentar o que vem depois é parte de mostrar o trabalho.
+   -------------------------------------------------------------------------- */
+const RADAR = [
+  { nome: 'GitHub Actions', o_que: 'CI para validar código e imagem a cada push, antes de qualquer coisa chegar ao cluster.' },
+  { nome: 'Bibliotecas homologadas', o_que: 'A lista do que PODE e do que NÃO PODE entrar como dependência, com o critério escrito — em vez de decisão por gosto.' },
+  { nome: 'Bootstrap do host', o_que: 'Subir o node do zero de forma declarada. Hoje isso está documentado e NÃO declarado, e esse é o furo de replicabilidade que a gente já nomeou.' },
+  { nome: 'EKS', o_que: 'A evolução do single-node para o Kubernetes gerenciado, em outro momento.' },
+  { nome: 'Desenho de arquitetura', o_que: 'Diagramas com draw.io para acompanhar esta página na apresentação.' }
 ];
 
 const ROTULO_GRUPO = {
@@ -317,15 +594,42 @@ function marcarAtalho(valor) {
 }
 
 /* ---------------------------------------------------------------- stack */
-function renderStack() {
-  document.getElementById('stack').innerHTML = STACK.map((t) => `
-    <div class="tec">
-      <img src="tec-${escapar(t.tec)}.svg" alt="" loading="lazy">
-      <div>
-        <div class="tec-nome">${escapar(t.nome)}</div>
-        <div class="tec-papel">${escapar(t.papel)}</div>
-        <div class="tec-nota">${escapar(t.nota)}</div>
+function cartaoTec(t) {
+  // Kiali, Jaeger, cert-manager e trust-manager não têm marca publicada no
+  // Simple Icons. Monograma resolve melhor que um buraco na grade — e melhor
+  // que um logo inventado, que seria mentira visual.
+  const marca = t.tec
+    ? `<img src="tec-${escapar(t.tec)}.svg" alt="" loading="lazy">`
+    : `<span class="tec-mono" aria-hidden="true">${escapar(t.mono || '?')}</span>`;
+  return `
+    <article class="tec">
+      <div class="tec-cabecalho">
+        ${marca}
+        <div>
+          <div class="tec-nome">${escapar(t.nome)}</div>
+          <div class="tec-versao">${escapar(t.versao)}</div>
+        </div>
       </div>
+      <div class="tec-papel">${escapar(t.papel)}</div>
+      <p class="tec-proposta">${escapar(t.proposta)}</p>
+      <a class="tec-doc" href="${escapar(t.doc)}" target="_blank" rel="noopener">documentação ↗</a>
+    </article>`;
+}
+
+function renderStack() {
+  document.getElementById('stack').innerHTML = STACK.map((bloco) => `
+    <section class="stack-grupo">
+      <h3>${escapar(bloco.grupo)}</h3>
+      ${bloco.nota ? `<p class="stack-nota">${escapar(bloco.nota)}</p>` : ''}
+      <div class="stack-grade">${bloco.itens.map(cartaoTec).join('')}</div>
+    </section>`).join('');
+}
+
+function renderRadar() {
+  document.getElementById('radar').innerHTML = RADAR.map((r) => `
+    <div class="radar-item">
+      <span class="radar-nome">${escapar(r.nome)}</span>
+      <span class="radar-que">${escapar(r.o_que)}</span>
     </div>`).join('');
 }
 
@@ -395,5 +699,6 @@ function aplicarModelo(valor) {
 }
 
 renderStack();
+renderRadar();
 ligarControles();
 carregar().then(carregarDescoberta);

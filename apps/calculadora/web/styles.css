@@ -265,21 +265,72 @@ select:focus, input[list]:focus { outline: 2px solid var(--bui-bg-solid); outlin
 #descoberta .dica { max-width: 100%; }
 
 /* ------------------------------------------------------------- stack */
-.stack { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.stack-grupo { margin-bottom: 22px; }
+.stack-grupo:last-child { margin-bottom: 0; }
+.stack-grupo h3 {
+  margin: 0 0 2px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--bui-fg-secondary);
+  border-bottom: 2px solid var(--bui-bg-solid);
+  display: inline-block;
+  padding-bottom: 3px;
+}
+.stack-nota { margin: 6px 0 12px; font-size: 12.5px; color: var(--bui-fg-secondary); }
+
+.stack-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; margin-top: 12px; }
 
 .tec {
   display: flex;
-  gap: 11px;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 8px;
   border: 1px solid var(--bui-border-1);
   border-radius: 8px;
-  padding: 11px 12px;
+  padding: 12px 13px;
   background: var(--cor-papel);
 }
+.tec-cabecalho { display: flex; align-items: center; gap: 10px; }
 .tec img { width: 26px; height: 26px; flex: 0 0 auto; opacity: .85; }
-.tec-nome { font-weight: 600; font-size: 13.5px; }
-.tec-papel { font-size: 11.5px; color: var(--bui-bg-solid-hover); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
-.tec-nota { font-size: 12px; color: var(--bui-fg-secondary); }
+
+/* Monograma para quem não tem marca publicada — melhor que buraco na grade. */
+.tec-mono {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: var(--bui-fg-primary);
+  color: var(--bui-fg-solid);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+
+.tec-nome { font-weight: 600; font-size: 14px; }
+.tec-versao { font-size: 11.5px; color: var(--bui-fg-secondary); }
+.tec-papel {
+  font-size: 11.5px;
+  color: var(--bui-bg-solid-hover);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+.tec-proposta { margin: 0; font-size: 12.5px; color: var(--bui-fg-secondary); flex: 1 1 auto; }
+.tec-doc { font-size: 12px; font-weight: 600; text-decoration: none; }
+
+/* --------------------------------------------------------------- radar */
+.radar { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
+.radar-item {
+  border: 1px dashed var(--bui-border-2);
+  border-radius: 8px;
+  padding: 11px 13px;
+  background: var(--bui-bg-app);
+}
+.radar-nome { display: block; font-weight: 600; font-size: 13.5px; margin-bottom: 4px; }
+.radar-que { font-size: 12.5px; color: var(--bui-fg-secondary); }
 
 .rodape-copyright {
   margin-top: 14px;

@@ -1,0 +1,98 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgresql-garantir-bancos
+  namespace: postgresql
+  labels:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/part-of: resilience-cloud
+    app.kubernetes.io/component: database
+spec:
+  # 6 tentativas porque num cluster NOVO este Job pode subir antes do
+  # StatefulSet estar pronto. O `until pg_isready` já espera, mas se o Pod do
+  # banco reiniciar no meio, a retentativa cobre sem intervenção.
+  backoffLimit: 6
+  activeDeadlineSeconds: 600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgresql
+        app.kubernetes.io/component: database-init
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: garantir-bancos
+          image: postgres:17-alpine
+          env:
+            # A senha vem do MESMO Secret que o StatefulSet usa. Nenhuma senha
+            # de superusuário entra no Git, em ConfigMap, ou no histórico do
+            # shell de quem instalou o cluster.
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-credentials
+                  key: postgres-password
+          volumeMounts:
+            - name: init
+              mountPath: /sql
+              readOnly: true
+          command:
+            - sh
+            - -c
+            - |
+              set -u
+
+              echo "[1/3] esperando o PostgreSQL aceitar conexao..."
+              for _ in $(seq 1 60); do
+                if pg_isready -h postgresql -U postgres >/dev/null 2>&1; then
+                  echo "      pronto."
+                  break
+                fi
+                sleep 2
+              done
+              pg_isready -h postgresql -U postgres >/dev/null 2>&1 || {
+                echo "ERRO: o PostgreSQL nao respondeu em 120s"; exit 1; }
+
+              # Sem ON_ERROR_STOP DE PROPOSITO.
+              #
+              # O arquivo cria os bancos com `CREATE DATABASE` simples, e rodar
+              # isto num cluster que ja existe devolve "database already exists"
+              # para cada um. Isso NAO e falha — e o caso normal. Com
+              # ON_ERROR_STOP o Job morreria na primeira linha, e para evitar
+              # isso o SQL teria de ser reescrito aqui (duplicando a lista de
+              # bancos, que e exatamente o que nao se quer: duas listas que
+              # divergem).
+              #
+              # Entao: roda tolerando o "ja existe", e VERIFICA o resultado no
+              # passo [3/3]. A verificacao e o que da sentido ao Job — sem ela,
+              # uma falha real (senha errada, por exemplo) passaria calada.
+              echo "[2/3] aplicando create-databases.sql (o 'ja existe' e esperado)..."
+              psql -h postgresql -U postgres -d postgres -f /sql/create-databases.sql
+
+              echo "[3/3] verificando o que TEM de existir..."
+              faltando=$(psql -h postgresql -U postgres -d postgres -tAc "
+                SELECT string_agg(nome, ', ')
+                FROM (VALUES ('backstage'),('keycloak'),('grafana'),('calculadora')) AS esperado(nome)
+                WHERE NOT EXISTS (SELECT FROM pg_database d WHERE d.datname = esperado.nome);
+              ")
+              if [ -n "$faltando" ]; then
+                echo "ERRO: bancos faltando: $faltando"
+                exit 1
+              fi
+
+              faltando=$(psql -h postgresql -U postgres -d postgres -tAc "
+                SELECT string_agg(nome, ', ')
+                FROM (VALUES ('backstage'),('keycloak'),('grafana'),('calculadora')) AS esperado(nome)
+                WHERE NOT EXISTS (SELECT FROM pg_roles r WHERE r.rolname = esperado.nome);
+              ")
+              if [ -n "$faltando" ]; then
+                echo "ERRO: usuarios faltando: $faltando"
+                exit 1
+              fi
+
+              echo "OK: os 4 bancos e os 4 usuarios existem."
+              psql -h postgresql -U postgres -d postgres -c "\l" | grep -E "backstage|keycloak|grafana|calculadora" || true
+      volumes:
+        - name: init
+          configMap:
+            name: postgresql-init

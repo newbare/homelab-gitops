@@ -25,7 +25,11 @@ from pathlib import Path
 import pytest
 
 BASE = Path(__file__).resolve().parent.parent
+# Dois caminhos, porque ha dois lugares de modulo: `api/` (precos, servidor, pg,
+# oficial) e a raiz do app (buscar_precos, carregar_precos, calcular). O teste
+# importa pelo MESMO nome que roda em producao.
 sys.path.insert(0, str(BASE / "api"))
+sys.path.insert(0, str(BASE))
 
 DADOS = BASE / "dados"
 

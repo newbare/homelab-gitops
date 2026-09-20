@@ -26,3 +26,15 @@ data:
     CREATE USER grafana WITH PASSWORD 'grafana-password';
     GRANT ALL PRIVILEGES ON DATABASE grafana TO grafana;
     ALTER DATABASE grafana OWNER TO grafana;
+
+    -- Calculadora Resilience (fase F2)
+    --
+    -- Atencao: este arquivo roda APENAS na primeira inicializacao do volume
+    -- (docker-entrypoint-initdb.d). Num cluster que ja existe, quem garante os
+    -- bancos e o Job `postgresql-garantir-bancos` (init-job.yaml), que roda
+    -- este MESMO arquivo tolerando o "ja existe" e depois VERIFICA o resultado.
+    -- A lista de bancos existe num lugar so, aqui.
+    CREATE DATABASE calculadora;
+    CREATE USER calculadora WITH PASSWORD 'calculadora-password';
+    GRANT ALL PRIVILEGES ON DATABASE calculadora TO calculadora;
+    ALTER DATABASE calculadora OWNER TO calculadora;

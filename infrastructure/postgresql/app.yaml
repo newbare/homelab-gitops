@@ -18,7 +18,12 @@ spec:
     targetRevision: main
     path: infrastructure/postgresql
     directory:
-      include: "{configmap.yaml,service.yaml,statefulset.yaml}"
+      # O Job entra na lista de proposito: e ele que GARANTE os bancos e usuarios
+      # em qualquer cluster, inclusive num que ja existe. O `configmap.yaml`
+      # sozinho nao basta — o SQL dele roda apenas na PRIMEIRA inicializacao do
+      # volume (docker-entrypoint-initdb.d), entao num cluster ja instalado ele
+      # nunca mais roda.
+      include: "{configmap.yaml,service.yaml,statefulset.yaml,init-job.yaml}"
       exclude: "{app.yaml,secret.yaml}"
   destination:
     server: https://kubernetes.default.svc

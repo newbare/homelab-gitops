@@ -184,17 +184,34 @@ def ratecodes_do_price_list(offer_code, regiao_codigo, cache_dir=CACHE_PADRAO):
     return precos, arquivo.get("publicationDate")
 
 
-def ratecodes_do_mapa(url_mapa, rotulo_regiao, cache_dir=CACHE_PADRAO):
-    """rateCode -> preço, do mapa que a calculadora da AWS consome."""
-    mapa = baixar_json(url_mapa, cache_dir=cache_dir)
+def itens_da_estrutura(mapa, rotulo_regiao):
+    """Os itens da região, a partir de um mapa JÁ lido.
+
+    Separado de `itens_do_mapa` para a carga poder aproveitar os bytes que já
+    baixou (e calcular o hash do conteúdo exato) sem reabrir o arquivo. A
+    navegação do JSON mora aqui, num lugar só.
+    """
     entrada = (mapa.get("regions") or {}).get(rotulo_regiao)
     if not entrada:
-        return {}, mapa
-    precos = {}
-    for item in entrada.values():
-        if isinstance(item, dict) and item.get("rateCode"):
-            precos[item["rateCode"]] = Decimal(str(item.get("price")))
-    return precos, mapa
+        return []
+    return [item for item in entrada.values() if isinstance(item, dict) and item.get("rateCode")]
+
+
+def itens_do_mapa(url_mapa, rotulo_regiao, cache_dir=CACHE_PADRAO):
+    """Os itens CRUS do mapa na região, sem recortar nada.
+
+    Devolve (itens, mapa). Lista vazia quando a região não está no mapa — e isso
+    NÃO é erro: os mapas terminados em `-calc` vêm com `regions` vazio, porque
+    são de outro formato, sem eixo de região.
+    """
+    mapa = baixar_json(url_mapa, cache_dir=cache_dir)
+    return itens_da_estrutura(mapa, rotulo_regiao), mapa
+
+
+def ratecodes_do_mapa(url_mapa, rotulo_regiao, cache_dir=CACHE_PADRAO):
+    """rateCode -> preço, do mapa que a calculadora da AWS consome."""
+    itens, mapa = itens_do_mapa(url_mapa, rotulo_regiao, cache_dir)
+    return {item["rateCode"]: Decimal(str(item.get("price"))) for item in itens}, mapa
 
 
 # `escolher_oferta` foi REMOVIDA. Casar família→oferta por heurística de nome

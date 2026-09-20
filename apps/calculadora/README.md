@@ -91,20 +91,28 @@ arquivo local — é o que cabe.
 
 ```
 buscar_precos.py        coleta RARA e PESADA da lista oficial (EC2 = 288 MB)
+carregar_precos.py      carrega os mapas OFICIAIS no PostgreSQL (fase F2)
 calcular.py             CLI — imprime a mesma conta que o painel faz
 api/
   precos.py             o núcleo: fator de unidade, cálculo, projeção mensal
   servidor.py           serviço HTTP (biblioteca padrão) + rotas de descoberta
+  pg.py                 cliente PostgreSQL em biblioteca padrão (SCRAM-SHA-256)
+  oficial.py            cliente das fontes oficiais (manifest, definição, mapas)
   openapi.json          a especificação 3.1, escrita à mão (artefato de desenho)
+sql/
+  000-banco.sql         banco e usuário (exige superusuário, via psql)
+  001-schema.sql        o modelo de preço e estimativa (idempotente)
 dados/
   bom.json              o que compõe a infra + o PORQUÊ de cada linha
   prices.json           snapshot oficial, com procedência e data
+  escopo.json           os 24 serviços do escopo, com as raízes verificadas
+  correspondencia.json  família do mapa -> oferta do Price List (confirmada)
 web/
   index.html/app.js     a SPA (JavaScript puro, sem React, sem build)
   docs.html             a tela que renderiza a spec OpenAPI
   styles.css            identidade visual — tokens do tema do Backstage
   tec-*.svg             logos da stack (uma vez baixados, versionados aqui)
-tests/                  87 testes: aritmética, contrato do dado e borda HTTP
+tests/                  aritmética, contrato do dado, borda HTTP, protocolo e portão
 ```
 
 ---
@@ -113,11 +121,22 @@ tests/                  87 testes: aritmética, contrato do dado e borda HTTP
 
 ```bash
 make                    # mostra os alvos
-make teste              # 87 testes
+make teste              # a suíte inteira
 make tabela             # o número de 7 dias no terminal
 make servir             # painel local em http://localhost:8080
 make snapshot           # RECOLETA da lista oficial (EC2: 288 MB, leva minutos)
 ```
+
+E os alvos da fase F2 (os preços no PostgreSQL — o motor agnóstico):
+
+```bash
+make f2                 # TUDO: banco, schema, carga e conferência
+make carga-seca         # coleta e confere SEM gravar nada
+make carga-conferir     # o que está na base
+```
+
+O passo a passo desta fase, e as decisões que a carga toma, estão em
+[`docs/calculadora/02-f2-carga.md`](../../docs/calculadora/02-f2-carga.md).
 
 ### Por que o snapshot é um passo separado
 

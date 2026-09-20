@@ -260,6 +260,18 @@ carga_log          (id, iniciado_em, concluido_em, resultado,
 das suas linhas, e cada linha carrega o `rate_code` e o preço unitário usados. Se
 um número parecer estranho, dá para abrir e ver de onde veio.
 
+### 4.1 Correção depois de rodar: um rateCode pode estar em mais de um mapa
+
+O plano supunha `1 rateCode = 1 linha`. A primeira carga de verdade mostrou que
+não é bem assim: **`redshift` e `redshift-storage` publicam os MESMOS 140
+rateCodes**, e o `cloudwatch` aparece no mapa do RDS e no do EC2. Medido: 16.402
+entradas nos mapas viram **8.726 rateCodes únicos**.
+
+O `UNIQUE (rate_code, regiao_codigo) WHERE vigente` continua certo — ele está
+certo *porque* a dimensão é identificada pelo rateCode, e não pelo mapa. O que
+mudou foi a carga: ela consolida antes de gravar, guarda em `atributos.mapas`
+quem declara cada preço, e **recusa** se dois mapas discordarem do valor.
+
 ---
 
 ## 5. O botão de atualizar preço
@@ -329,7 +341,7 @@ Cada fase é verificável sozinha e não depende da seguinte.
 | Fase | Entrega | Como se verifica |
 |---|---|---|
 | **F1** | Coletor do mapa oficial + **conferência `rateCode`** para os 24 | ✅ **feito**: 10.150 iguais · 0 diferentes · 86 ausentes irredutíveis (Redshift) · correspondência em `dados/correspondencia.json` |
-| **F2** | Schema no Postgres + carga dos preços + `carga_log` | `select count(*), max(carregado_em) from preco` bate com o mapa |
+| **F2** | Schema no Postgres + carga dos preços + `carga_log` | ✅ **feito e executado** (2026-09-20): **8.726 rateCodes vigentes** em us-east-1, 0 divergências, 125 testes. `api/pg.py` (cliente em biblioteca padrão, SCRAM-SHA-256), `sql/001-schema.sql`, `carregar_precos.py` com portão, Job declarativo em `infrastructure/postgresql/init-job.yaml` — ver [02-f2-carga.md](02-f2-carga.md) |
 | **F3** | Leitor de definição → `/servicos/{code}/campos` | o formulário do Lambda tem os campos da definição, com tipo e opções |
 | **F4** | Cálculo de **um** serviço ponta a ponta (KMS: 6 dimensões) | total nosso == total da oficial para o mesmo config |
 | **F5** | Botão de atualizar preços com o portão de validação | carga boa grava; carga com divergência **recusa e não grava** |

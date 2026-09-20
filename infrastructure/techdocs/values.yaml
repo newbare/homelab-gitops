@@ -1,0 +1,52 @@
+# ==========================================================================
+# TechDocs — geração e publicação do site do acervo
+#
+# Três etapas, três imagens OFICIAIS, em sequência dentro de UM Pod:
+#
+#   1. clonar    -> alpine/git         (o repositório é público: sem token)
+#   2. buildar   -> spotify/techdocs   (mkdocs + techdocs-core; é a MESMA imagem
+#                                       que o `techdocs-cli generate` usaria)
+#   3. publicar  -> amazon/aws-cli     (aws s3 sync --endpoint-url -> Floci)
+#
+# Nada é buildado por nós: sem Docker daemon, sem imagem própria para manter,
+# e nada rodando fora do cluster.
+#
+# Por que um CronJob e não CI: o destino é o Floci em 192.168.99.5:4566, que só
+# existe na LAN. Um runner de CI externo não alcança. Com AWS real isso muda —
+# aí o caminho oficial da doc (GitHub Actions) passa a valer.
+# ==========================================================================
+
+namespace: backstage
+
+# A cada 30 min. Rodada ociosa é barata: o sync usa --size-only.
+schedule: "*/30 * * * *"
+
+source:
+  repository: https://github.com/newbare/homelab-gitops.git
+  revision: main
+
+images:
+  # Tags FIXAS de propósito — ADR-005 proíbe `latest`.
+  # (a `latest` da spotify/techdocs é mais nova que 1.2.9, mas não é imutável;
+  #  1.2.9 é a última versão publicada)
+  clone: alpine/git:v2.54.0
+  build: spotify/techdocs:1.2.9
+  publish: amazon/aws-cli:2.36.49
+
+publish:
+  bucket: resilience-techdocs
+  endpoint: http://192.168.99.5:4566
+  # Caminho no bucket = entity triplet em MINÚSCULAS.
+  entity: default/component/documentacao-resilience
+  region: us-east-1
+  # Secret criado FORA do Git, como o `backstage-keycloak`. Mesmo Secret que o
+  # backend do Backstage usa para LER o bucket (ver infrastructure/backstage/app.yaml).
+  credentialsSecret: backstage-techdocs-s3
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi

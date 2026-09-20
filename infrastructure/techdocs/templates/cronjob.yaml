@@ -1,0 +1,111 @@
+# ==========================================================================
+# CronJob — gera e publica o site do acervo
+#
+# A ordem não é escolha: initContainers rodam EM SEQUÊNCIA, na ordem declarada,
+# e só depois os containers regulares. Por isso clonar e buildar são init, e
+# publicar é o container principal.
+#
+# Os três compartilham o mesmo emptyDir (/work): o clone deixa o repositório em
+# /work/src, o build escreve /work/site, o publish lê /work/site.
+# ==========================================================================
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: techdocs-builder
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: techdocs-builder
+    app.kubernetes.io/component: build
+    app.kubernetes.io/part-of: techdocs
+spec:
+  schedule: "{{ .Values.schedule }}"
+  # Uma rodada por vez: duas publicações simultâneas no mesmo prefixo do bucket
+  # são uma corrida desnecessária.
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      # Limpa o Job concluído depois de 1h, para o histórico não virar lixo.
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: techdocs-builder
+        spec:
+          restartPolicy: Never
+          initContainers:
+            # ------------------------------------------------------------
+            # 1. clonar — o fonte do acervo (mkdocs.yml + docs/)
+            # ------------------------------------------------------------
+            - name: clonar
+              image: {{ .Values.images.clone }}
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  rm -rf /work/src
+                  git clone --depth 1 --branch "{{ .Values.source.revision }}" \
+                    "{{ .Values.source.repository }}" /work/src
+                  echo "commit clonado: $(git -C /work/src rev-parse --short HEAD)"
+              resources:
+                {{- toYaml .Values.resources | nindent 16 }}
+              volumeMounts:
+                - name: work
+                  mountPath: /work
+            # ------------------------------------------------------------
+            # 2. buildar — mkdocs com o techdocs-core (imagem oficial)
+            # ------------------------------------------------------------
+            - name: buildar
+              image: {{ .Values.images.build }}
+              workingDir: /work/src
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  mkdocs build --site-dir /work/site
+                  echo "arquivos gerados: $(find /work/site -type f | wc -l)"
+                  test -f /work/site/index.html
+              resources:
+                {{- toYaml .Values.resources | nindent 16 }}
+              volumeMounts:
+                - name: work
+                  mountPath: /work
+          containers:
+            # ------------------------------------------------------------
+            # 3. publicar — sync para o bucket que o Backstage lê
+            # ------------------------------------------------------------
+            - name: publicar
+              image: {{ .Values.images.publish }}
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  DESTINO="s3://{{ .Values.publish.bucket }}/{{ .Values.publish.entity }}/"
+                  aws --endpoint-url "{{ .Values.publish.endpoint }}" \
+                    s3 sync /work/site "$DESTINO" \
+                    --delete --size-only --only-show-errors
+                  echo "objetos no bucket: $(aws --endpoint-url "{{ .Values.publish.endpoint }}" \
+                    s3 ls "$DESTINO" --recursive | wc -l)"
+              env:
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.publish.credentialsSecret }}
+                      key: AWS_ACCESS_KEY_ID
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.publish.credentialsSecret }}
+                      key: AWS_SECRET_ACCESS_KEY
+                - name: AWS_DEFAULT_REGION
+                  value: {{ .Values.publish.region }}
+              resources:
+                {{- toYaml .Values.resources | nindent 16 }}
+              volumeMounts:
+                - name: work
+                  mountPath: /work
+          volumes:
+            - name: work
+              emptyDir: {}

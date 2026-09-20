@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: techdocs
+  namespace: argocd
+  annotations:
+    # Depois do Backstage (wave 7): o publisher só faz sentido quando o bucket
+    # já é lido pela aplicação.
+    argocd.argoproj.io/sync-wave: "8"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    # Aponta para o PRÓPRIO repositório, e não para um repo de charts externo:
+    # assim a agenda, as imagens e o bucket vivem no Git (values.yaml) e mudar
+    # qualquer um deles é `git push`. Nos apps chart-based (backstage, keycloak)
+    # os values vivem dentro deste objeto, e por isso exigem `kubectl apply`.
+    repoURL: https://github.com/newbare/homelab-gitops.git
+    targetRevision: main
+    # O ArgoCD detecta Helm sozinho por causa do Chart.yaml neste diretório.
+    path: infrastructure/techdocs
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: backstage
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false

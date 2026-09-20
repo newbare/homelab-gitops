@@ -1,0 +1,8 @@
+apiVersion: v2
+name: techdocs-builder
+description: >-
+  Gera o site do acervo com mkdocs e publica no bucket lido pelo Backstage.
+  Sem imagem própria: três imagens OFICIAIS orquestradas em sequência num Pod.
+type: application
+version: 0.1.0
+appVersion: "1.2.9"

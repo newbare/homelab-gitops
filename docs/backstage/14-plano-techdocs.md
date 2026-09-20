@@ -155,24 +155,40 @@ fazer sentido aqui.
 
 ## 5. Incrementos propostos
 
-**Incremento 1 — provar que o Pod consegue ler.**
-✅ **Bucket: FEITO (2026-09-19)** — `resilience-techdocs`, criado pelo stack
-`terraform/iam-users`: versionamento `Enabled`, SSE `AES256`, transição para
-`ONEZONE_IA` em 30 dias, sem expiração de objeto. Decisões, armadilhas e fontes:
-[`terraform/iam-users/README.md`](../../terraform/iam-users/README.md).
+**Incremento 1 — provar que o Pod consegue ler.** ✅ **FEITO (2026-09-19)**
+Bucket `resilience-techdocs` criado pelo stack `terraform/iam-users`
+(versionamento, `AES256`, transição 30d → `ONEZONE_IA`, sem expiração); o
+publisher `awsS3` aponta para o Floci; a entidade existe no catálogo e a página
+renderiza com o acervo de verdade.
 
-Falta: publicar um `index.md` de teste, mudar `techdocs.publisher.type` para
-`awsS3` com o endpoint do Floci e verificar que a aba de documentação abre lendo
-do S3. *Sem isso, nada mais importa: se o Pod não lê, gerar é inútil.*
+⚠️ **O que quase custou caro:** eu subi um `index.html` escrito à mão como
+payload de teste e a página ficou em **spinner eterno**. O leitor carrega o HTML
+num iframe e espera a estrutura do tema do **mkdocs** — HTML sem tema não
+renderiza. Não era o leitor que estava quebrado: era falso o conteúdo. Lição: só
+se testa o leitor com um site mkdocs de verdade.
 
-**Incremento 2 — gerar de verdade.**
-Job/CronJob in-cluster com a imagem `spotify/techdocs`, que clona o repositório,
-roda `mkdocs build` e publica no bucket. Junto: o `mkdocs.yml` que ainda não
-existe.
+**Incremento 2 — gerar de verdade.** ✅ **FEITO (2026-09-19)**
+Não numa máquina de fora: **dentro do cluster**, e declarativo.
+`infrastructure/techdocs/` é um chart Helm local (`Chart.yaml` + `values.yaml` +
+`templates/cronjob.yaml`) e `app.yaml` é a Application que o ArgoCD observa
+(`path: infrastructure/techdocs`, mesmo padrão de `certificate-app` e `ca-app`).
 
-**Incremento 3 — ligar na entidade.**
-`catalog-info.yaml` do `Component` de documentação com
-`backstage.io/techdocs-ref: dir:.`, e a nav do `mkdocs.yml` cobrindo as jornadas.
+Três imagens **oficiais** em sequência num Pod, nenhuma imagem nossa:
+`clonar` (`alpine/git`) → `buildar` (`spotify/techdocs` — a mesma que o
+`techdocs-cli generate` usaria) → `publicar` (`amazon/aws-cli`, com
+`--endpoint-url` para o Floci). CronJob a cada 30 min, `--size-only --delete`.
+
+Verificado com execução manual: clone no commit `f7a8c06`, `mkdocs build` em 6s,
+74 arquivos gerados, 74 objetos no bucket, Pod `Completed`.
+
+Como os values vivem no **repositório** (e não dentro do objeto Application, como
+em `backstage`/`keycloak`), mudar agenda, imagem ou bucket aqui é `git push`.
+
+**Incremento 3 — ligar nos componentes.**
+A entidade dona e a `techdocs-ref` já existem. Falta o resto: as 12 anotações
+`backstage.io/techdocs-entity` nos componentes, para que cada um ganhe a aba
+apontando para o **mesmo** site (sem segundo build), e curar a `nav:` do
+`mkdocs.yml` — hoje a navegação é automática, gerada da árvore de `docs/`.
 
 ---
 

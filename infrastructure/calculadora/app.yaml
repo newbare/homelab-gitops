@@ -28,5 +28,26 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
+      # ⚠️ ServerSideApply é OBRIGATÓRIO aqui, não preferência de estilo.
+      #
+      # Os ConfigMaps deste app são grandes de propósito: o da web leva o painel,
+      # a página de documentação e o logo em base64 (323 KB), e o de dados leva o
+      # snapshot de preços com o catálogo de 1.249 modelos de EC2 (318 KB).
+      #
+      # Com apply no modo CLIENTE, o ArgoCD grava o objeto inteiro no annotation
+      # `last-applied-configuration` — e o limite de annotation é 256 KiB, MENOR
+      # que o limite de 1 MB do ConfigMap. O apply falha assim:
+      #
+      #   ConfigMap "calculadora-web" is invalid: metadata.annotations:
+      #   Too long: may not be more than 262144 bytes
+      #
+      # O sintoma engana: o Pod fica em ContainerCreating com "configmap not
+      # found", como se o ConfigMap nunca tivesse sido criado. Ele até aparece
+      # no render — o que falha é a GRAVAÇÃO.
+      #
+      # Server-side apply não usa esse annotation. Efeitos colaterais a conhecer:
+      # conflito de campo com quem já seja dono dos campos, e `--force` não pode
+      # ser usado junto (ver docs/praticas/README.md, seção 9.3).
+      - ServerSideApply=true
       # O namespace é declarado em infrastructure/namespaces/, como os outros.
       - CreateNamespace=false

@@ -388,3 +388,76 @@ spec:
   type: documentation
   lifecycle: production
   owner: resilience-admins
+
+---
+# ══════════════════════════════════════════════════════════════════════════
+# Aplicação do laboratório — a calculadora de custo AWS.
+#
+# ── POR QUE AQUI, E NÃO EM apps/calculadora/ ───────────────────────────────
+# Decisão D6 (§7): arquivo CENTRAL, para revisar num lugar só.
+#
+# ── POR QUE ISTO NÃO PEDE `kubectl apply` ──────────────────────────────────
+# A location `…/blob/main/catalog/catalog-info.yaml` JÁ está registrada no
+# appConfig (Incremento 2). Entidade nova em location já registrada não mexe
+# em config: o `refresh_state` recarrega a location sozinho a cada ~2,5 min.
+# Essa cadência foi medida na Fase 2 §10 — é por isso que a ingestão "demora",
+# e demorar não é bug.
+#
+# ⚠️ O alvo da location é fixo em `main`. Logo esta entidade só vale na main:
+# numa branch o Backstage não a lê. Não há pré-visualização de catálogo.
+#
+# ── POR QUE SEM `system` ───────────────────────────────────────────────────
+# Os 5 Systems de D2 descrevem a PLATAFORMA; a calculadora é aplicação.
+# Pendurá-la em `plataforma-gitops` seria forçar a relação. Precedente de
+# componente sem System: `bookinfo` e `documentacao-resilience`.
+# Um 6º System é decisão do adotante (D2 foi sua) — por isso não foi criado.
+# ══════════════════════════════════════════════════════════════════════════
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: calculadora-custo-aws
+  title: Calculadora de Custo AWS
+  description: >-
+    Painel de precificação da stack do laboratório sobre a AWS. Lê o Bulk
+    Price List público, recorta o snapshot dos serviços usados e projeta o
+    custo de uma janela de operação (padrão: 168 h). Serve também o contrato
+    OpenAPI da própria API de cálculo.
+  annotations:
+    # Uma Application (`calculadora`) para um Component — é a correspondência
+    # 1:1 que a anotação pressupõe. Hoje é INERTE: o plugin do ArgoCD não está
+    # instalado (mesma situação de todas as outras entidades).
+    argocd/app-name: calculadora
+
+    # Decisão T5(a) do plano de TechDocs: UM Component é dono do site e os
+    # demais REFERENCIAM via `techdocs-entity` — o referenciador não precisa
+    # de `techdocs-ref`. A documentação da calculadora vive no acervo
+    # (docs/aws/README.md §6), então é esse o destino honesto da aba Docs.
+    backstage.io/techdocs-entity: component:default/documentacao-resilience
+  tags:
+    - finops
+    - aws
+    - python
+    - openapi
+  links:
+    - title: Painel no cluster
+      url: https://calculadora.local
+      icon: dashboard
+    - title: Contrato OpenAPI renderizado
+      url: https://calculadora.local/api/docs
+      icon: code
+    - title: Código e README do app
+      url: https://github.com/newbare/homelab-gitops/tree/main/apps/calculadora
+      icon: cloud
+spec:
+  # `website`, não `service`: é um painel que se abre no navegador, como o
+  # próprio `backstage`. Neste catálogo, `service` tem sido o que roda em
+  # cluster e é consumido por integração (keycloak, istio, cert-manager).
+  type: website
+  lifecycle: production
+  owner: resilience-admins
+  # 📌 NÃO modelado aqui: a API. O app publica uma spec OpenAPI 3.1 em
+  # /api/openapi.json, e o modelo API-first pediria uma entidade própria:
+  #   kind: API · type: openapi · providesApi: [api:default/calculadora-precos]
+  # com `definition: { $text: <url in-cluster> }`. Já verifiquei que o Pod do
+  # Backstage alcança esse endpoint, e `API` já está em `rules.allow`.
+  # Não entrou porque o modelo aprovado (§3.2) não previa entidade de API.

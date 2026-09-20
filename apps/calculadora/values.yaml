@@ -1,0 +1,50 @@
+# ==========================================================================
+# Calculadora Resilience — values do chart
+#
+# Este diretório é o PRÓPRIO chart, e não um diretório de infra que aponta
+# para uma imagem. O motivo é a doutrina do repositório (documentado ≠
+# declarado): o app é feito de web/, api/ e dados/, que são arquivos de TEXTO
+# no Git. Viram ConfigMap no cluster. Então não existe imagem própria para
+# construir, registry para manter, nem tag para esquecer de subir.
+#
+# Consequência a declarar: o container é a imagem OFICIAL do Python, e o app
+# roda de dentro de ConfigMaps. Sem build, sem `pip install`, sem Dockerfile.
+# ==========================================================================
+
+namespace: calculadora
+
+# Imagem oficial, tag fixa (ADR-005 proíbe `latest`).
+imagem:
+  repositorio: python
+  tag: "3.13-alpine"
+  pullPolicy: IfNotPresent
+
+porta: 8080
+
+# O Pod não precisa escrever nada: ConfigMaps montados como read-only e
+# sistema de arquivos raiz imutável. O emptyDir em /tmp existe porque
+# eventualmente a biblioteca padrão quer um temporário — e ceder 1 MB de
+# emptyDir é melhor que abrir o rootfs inteiro para escrita.
+seguranca:
+  rodarComoSemRoot: true
+  usuario: 65534 # nobody
+  rootfsSomenteLeitura: true
+
+recursos:
+  requests:
+    cpu: 10m
+    memory: 48Mi
+  limits:
+    cpu: 300m
+    memory: 160Mi
+
+ingress:
+  habilitado: true
+  host: calculadora.local
+  classe: nginx
+  # Mesmo padrão dos outros apps do laboratório: ClusterIssuer self-signed
+  # interno (ver infrastructure/cert-manager/cluster-issuer.yaml).
+  clusterIssuer: selfsigned-issuer
+  secretTls: calculadora.local-tls
+
+syncWave: "9"

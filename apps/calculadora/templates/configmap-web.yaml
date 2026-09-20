@@ -1,0 +1,27 @@
+{{- /*
+  ConfigMap com o FRONT-END.
+
+  `.Files.Glob "web/*"` lê os arquivos do próprio chart — é isto que permite o
+  app ser declarado sem imagem: o que está no Git é o que roda.
+
+  ⚠️ O `data:` recebe só TEXTO. Arquivo binário (PNG) entraria inválido aqui e
+  quebraria o manifesto, então a marca vive em `binaryData`, com base64. Se
+  alguém colocar um binário em web/, o render quebra na hora — o que é melhor
+  que quebrar no cluster.
+*/ -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: calculadora-web
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: calculadora
+    app.kubernetes.io/part-of: resilience-cloud
+data:
+  {{- (.Files.Glob "web/*").AsConfig | nindent 2 }}
+binaryData:
+  # Cópia do asset do Backstage (apps/backstage/packages/app/public/). A
+  # duplicação é consciente e está registrada no README: o Pod não alcança o
+  # repositório, então a marca precisa viajar junto com o app.
+  logo-resilience-full.png: {{ .Files.Get "assets/logo-resilience-full.png" | b64enc | quote }}
+  logo-resilience-icon.png: {{ .Files.Get "assets/logo-resilience-icon.png" | b64enc | quote }}

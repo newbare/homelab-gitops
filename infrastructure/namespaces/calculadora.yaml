@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: calculadora
+  labels:
+    # SEM `istio-injection`. O painel é interno, servido por Ingress, e não
+    # ganha nada com sidecar — ganharia só mais um container consumindo CPU e
+    # memória neste nó único.
+    app.kubernetes.io/part-of: resilience-cloud

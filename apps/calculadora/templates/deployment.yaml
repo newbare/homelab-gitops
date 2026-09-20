@@ -1,0 +1,111 @@
+{{- /*
+  Um container só: o mesmo processo serve o painel e a API.
+
+  Não há proxy nem nginx na frente porque não há duas coisas para separar — a
+  SPA é estática e a API é o mesmo binário. Um container a menos é um caminho
+  a menos para dar errado.
+
+  Estratégia Recreate (e não RollingUpdate): com réplica única servindo
+  arquivos de ConfigMap, dois Pods durante o rollout significa duas versões do
+  painel respondendo ao mesmo tempo. Numa tela que mostra número, isso é pior
+  que alguns segundos de indisponibilidade.
+*/ -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: calculadora
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: calculadora
+    app.kubernetes.io/part-of: resilience-cloud
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: calculadora
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: calculadora
+      annotations:
+        # Reinicia o Pod quando o CÓDIGO muda (web/ e api/). Sem isto, um
+        # `git push` atualizaria o ConfigMap e o processo continuaria servindo
+        # o código antigo — o tipo de bug que parece cache e não é.
+        #
+        # `dados/` NÃO entra no checksum de propósito: o servidor relê o
+        # snapshot pelo mtime, então mudar preço não precisa de rollout.
+        checksum/web: {{ include (print $.Template.BasePath "/configmap-web.yaml") . | sha256sum }}
+        checksum/api: {{ include (print $.Template.BasePath "/configmap-api.yaml") . | sha256sum }}
+    spec:
+      securityContext:
+        runAsNonRoot: {{ .Values.seguranca.rodarComoSemRoot }}
+        runAsUser: {{ .Values.seguranca.usuario }}
+        fsGroup: {{ .Values.seguranca.usuario }}
+      containers:
+        - name: calculadora
+          image: "{{ .Values.imagem.repositorio }}:{{ .Values.imagem.tag }}"
+          imagePullPolicy: {{ .Values.imagem.pullPolicy }}
+          command: ["python3", "/app/api/servidor.py"]
+          args:
+            - "--web"
+            - "/app/web"
+            - "--dados"
+            - "/app/dados"
+            - "--porta"
+            - "{{ .Values.porta }}"
+          env:
+            # Sem tentar escrever .pyc: o rootfs é imutável e o bytecode não
+            # compra nada aqui.
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+            - name: PYTHONUNBUFFERED
+              value: "1"
+          ports:
+            - name: http
+              containerPort: {{ .Values.porta }}
+          volumeMounts:
+            - name: web
+              mountPath: /app/web
+              readOnly: true
+            - name: api
+              mountPath: /app/api
+              readOnly: true
+            - name: dados
+              mountPath: /app/dados
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.recursos | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: {{ .Values.seguranca.rootfsSomenteLeitura }}
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: web
+          configMap:
+            name: calculadora-web
+        - name: api
+          configMap:
+            name: calculadora-api
+        - name: dados
+          configMap:
+            name: calculadora-dados
+        - name: tmp
+          emptyDir:
+            sizeLimit: 8Mi

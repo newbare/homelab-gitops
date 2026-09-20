@@ -5,7 +5,8 @@
 > genéricas": cada item existe porque **algo quebrou** ou porque evitou que
 > quebrasse.
 >
-> Origem: sessão de 2026-09-18 (Fase 11 — login OIDC).
+> Origem: sessão de 2026-09-18 (Fase 11 — login OIDC) e sessão de 2026-09-19
+> (Fase 12 — TechDocs no cluster).
 
 ---
 
@@ -493,7 +494,192 @@ o serviço fora do ar. São **duas perguntas diferentes**:
 
 ---
 
-## 8. Disciplina de alteração
+## 9. ArgoCD
+
+### 9.1 Não presuma o modo de sync — verifique
+
+```bash
+kubectl -n argocd get application techdocs \
+  -o jsonpath='{.status.sync.status}{"  "}{.status.health.status}{"\n"}'
+# Synced  Healthy
+
+kubectl -n argocd get application techdocs \
+  -o jsonpath='{.status.operationState.initiatedBy}{"\n"}'
+# {"automated":true}
+```
+
+O `Synced` **sozinho não prova nada**: ele também aparece quando alguém clicou
+em *Sync* no painel. Quem responde "o repositório se aplica sozinho?" é o
+`initiatedBy`. `{"automated":true}` = o controller fez, sem mão humana.
+
+Pergunta legítima ("acho que o Argo não sincroniza automático") se resolve com
+**um comando**, não com discussão.
+
+### 9.2 Qual commit está NO AR
+
+```bash
+kubectl -n argocd get application techdocs -o jsonpath='{.status.sync.revision}{"\n"}'
+```
+
+Esse é o commit **aplicado**, não o commit **enviado**. Depois de um `git push`
+o ArgoCD leva até ~3 minutos (polling) para enxergar — comparar os dois evita a
+conclusão falsa de que "o push não funcionou".
+
+### 9.3 Forçar o sync, em vez de esperar o ciclo
+
+```bash
+kubectl -n argocd patch application techdocs --type merge -p '{"operation":{"sync":{}}}'
+```
+
+`patch` em vez de `argocd app sync`: o `kubectl` usa o kubeconfig que **já está
+funcionando**. O CLI do ArgoCD exigiria `login`, contexto e mais uma ferramenta
+para manter.
+
+### 9.4 O Helm é detectado pelo `Chart.yaml`
+
+O ArgoCD decide renderizar com Helm ao encontrar **`Chart.yaml` dentro de
+`path:`**. Não existe flag no `Application` para isso — a decisão vem do
+arquivo. Consequência: remover o `Chart.yaml` de um diretório muda o
+comportamento **em silêncio**.
+
+### 9.5 Onde os values vivem muda quem consegue mudar
+
+| Onde os values vivem | Como se altera | Consequência |
+|---|---|---|
+| dentro do `Application` (`spec.source.helm.values`) | `kubectl apply -f app.yaml` | o valor só existe no **cluster**; não está no Git → o repositório **não reconstrói** o ambiente sozinho |
+| no **repositório** (`path: infrastructure/techdocs`, `values.yaml` no chart) | commit → sync | tem `git blame`, entra em revisão e **viaja junto no clone** |
+
+Foi por isso que o chart do `techdocs-builder` nasceu **no repositório**: quem
+clona leva o comportamento junto. Os `app.yaml` com os values embutidos como
+string (seção 2) são o outro modelo — funcionam, mas o valor não está declarado.
+
+---
+
+## 10. Floci e `aws` CLI
+
+### 10.1 Credenciais falsas, mas obrigatórias
+
+O emulador não valida credencial — mas o SDK **exige que exista**. Sem ela o
+erro é `No valid credential sources found`, que *parece* problema de permissão e
+é só variável faltando:
+
+```bash
+export AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test AWS_DEFAULT_REGION=us-east-1
+```
+
+### 10.2 `--endpoint-url` sempre
+
+```bash
+E=http://192.168.99.5:4566
+B=resilience-techdocs
+aws --endpoint-url $E s3 ls s3://$B --recursive
+```
+
+Sem `--endpoint-url`, o comando vai para a **AWS de verdade**. Com credenciais
+válidas, isso cria recurso em produção. Uma variável no topo do bloco evita
+repetir (e errar) o argumento.
+
+### 10.3 Publicar sem deixar arquivo no disco
+
+```bash
+aws --endpoint-url $E s3api put-object --bucket $B \
+  --key default/component/documentacao-resilience/index.html \
+  --content-type text/html --body /dev/stdin <<'HTML_EOF'
+…
+HTML_EOF
+```
+
+- O delimitador **entre aspas** (`'HTML_EOF'`) impede o shell de expandir `$` —
+  mesmo motivo da mensagem de commit na seção 1.1.
+- `--content-type`: sem ele o objeto sobe como `binary/octet-stream` e o leitor
+  baixa HTML sem saber que é HTML.
+
+### 10.4 A data do objeto é a prova de que não houve recriação
+
+```console
+$ aws --endpoint-url $E s3 ls | grep resilience
+2026-09-16 20:48:16 resilience-cloud-users
+2026-09-16 20:48:16 resilience-techdocs
+```
+
+Ao refatorar um módulo para `for_each` com **outra chave** (`["users"]` →
+`["resilience-cloud-users"]`), é isso que prova que os blocos `moved`
+funcionaram: a data de criação é a **antiga**.
+
+Bucket recriado teria data de hoje — e o conteúdo teria ido embora sem aviso. O
+`terraform plan` dizendo `0 to change, 0 to destroy` é a promessa; a data no
+provedor é a **verificação**.
+
+### 10.5 O que está no bucket não é o que o repositório promete
+
+```bash
+aws --endpoint-url $E s3 cp \
+  s3://$B/default/component/documentacao-resilience/techdocs_metadata.json -
+```
+
+O `etag`/`build_timestamp` desse metadata diz **qual build está no ar**. É o que
+separa "o builder falhou" de "o site publicado está velho" — duas causas
+diferentes para a mesma tela estranha.
+
+### 10.6 Do host, o teste não vale
+
+Vale o que já está na seção 5.4: o `curl` do macOS ignora `--cacert`. Para
+qualquer host interno, o teste tem de sair de **dentro** do cluster:
+
+```bash
+kubectl -n backstage exec deploy/backstage -- \
+  node -e "fetch('https://keycloak.local/…').then(r => console.log(r.status))"
+```
+
+E quando o valor é lido no boot do processo, o controle tem de nascer sem a
+variável — `env -u`, como na seção 3.1.1.
+
+---
+
+## 11. Toolchain é dependência: o build do site
+
+### 11.1 A imagem do build é parte do resultado
+
+O site do TechDocs **não é só o markdown**. O HTML depende das versões de
+`mkdocs` e `techdocs-core` que estão na imagem — e os **nomes dos assets**
+carregam hash de conteúdo:
+
+```console
+# build local (techdocs-core 1.7.1) contra o build do cron (imagem spotify/techdocs:1.2.9)
+enviados : 21      idênticos: 53      apagados : 4
+
+  enviar   .../assets/javascripts/bundle.d7400e89.min.js   (novo)
+  apagar   .../assets/javascripts/bundle.79ae519e.min.js   (não existe mais no site)
+```
+
+Mesmo repositório, mesmo conteúdo, mesmo commit — e **21 arquivos diferentes**.
+Se as duas pontas publicam no mesmo bucket, ele oscila a cada 30 minutos: um
+sobe, o outro derruba.
+
+> **Regra:** a imagem do build é **pinada** (`spotify/techdocs:1.2.9`). Quem gera
+> o site fora dela está gerando **outro** site.
+
+### 11.2 `--size-only` é aproximação; MD5 é resposta
+
+| Estratégia | O que responde | Risco |
+|---|---|---|
+| `aws s3 sync --size-only` (CronJob) | "o tamanho mudou?" | conteúdo diferente com **mesmo tamanho** passa batido |
+| MD5 local contra o `ETag` (`scripts/publish_site.py`) | "o conteúdo é o mesmo?" | nenhum, para objeto de uma parte |
+
+O cron usa `--size-only` porque a imagem `amazon/aws-cli` **só tem o CLI** — não
+tem Python nem boto3. É uma aproximação consciente, não um descuido.
+
+### 11.3 Comparar `ETag` só vale para objeto de uma parte
+
+O `ETag` é o MD5 **apenas** quando o objeto não foi enviado em partes
+(multipart), quando vira `<hash>-<n>`. A comparação do script é exata porque
+sabe que o site é feito de arquivos pequenos; se um dia entrar um asset grande
+em multipart, a comparação degrada para "sempre diferente" — inofensivo,
+apenas reenvia.
+
+---
+
+## 12. Disciplina de alteração
 
 1. **Ler antes de editar** — o arquivo inteiro, não o trecho.
 2. **Validar antes de aplicar** — as três camadas da seção 2.
@@ -503,3 +689,17 @@ o serviço fora do ar. São **duas perguntas diferentes**:
    degrada — **derruba** o Pod).
 5. **Documentar comando + porquê + saída esperada** — não basta entregar
    funcionando.
+6. **Antes de propor imagem própria, pergunte se compor imagens oficiais
+   resolve.** Um Pod com `initContainers` em sequência (clonar → buildar →
+   publicar), com imagens pinadas, é declarativo: qualquer um reconstrói. Uma
+   imagem construída na máquina de quem desenvolveu **não é**.
+7. **Nunca conclua pela ausência.** O plugin do TechDocs não aparecia em
+   `packages/app/src/plugins.ts` e mesmo assim a rota `/docs` renderizava. Onde
+   o registro é opcional, *não estar lá* não prova nada — **veja a rota**.
+8. **Valide com o artefato real.** Um `index.html` escrito à mão abriu o
+   conteúdo e travou o reader num spinner eterno (ele espera o tema do mkdocs).
+   O teste media o caminho de leitura, **não** a renderização. Teste com o que o
+   pipeline produz.
+9. **Pergunte o que um clone não reconstrói.** "Se eu clonar isto numa máquina
+   limpa agora, o que falta?" O que só existe na máquina de alguém ou na
+   cabeça de alguém é dívida — visível, anotada, e resolvida na ordem certa.

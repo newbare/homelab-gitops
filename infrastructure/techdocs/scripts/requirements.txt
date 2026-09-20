@@ -1,0 +1,3 @@
+# Cliente oficial da AWS — é o mesmo que o Backstage usa para LER o bucket e
+# o que a CLI do TechDocs usa para publicar. Mantém um só comportamento.
+boto3==1.40.60

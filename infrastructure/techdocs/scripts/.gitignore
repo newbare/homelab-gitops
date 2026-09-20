@@ -1,0 +1,5 @@
+# O venv dos scripts NÃO vai para o Git — mesmo padrão de
+# infrastructure/keycloak/scripts/.gitignore.
+.venv/
+__pycache__/
+*.pyc

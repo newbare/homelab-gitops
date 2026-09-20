@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculadora AWS — Resilience Cloud</title>
+<meta name="description" content="Custo do laboratório Resilience Cloud single-node em AWS, com preços da lista oficial.">
+<link rel="icon" href="logo-resilience-icon.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topo">
+  <div class="topo-conteudo">
+    <img src="logo-resilience-full.png" alt="Resilience Cloud" class="logo">
+    <div class="topo-texto">
+      <h1>Calculadora AWS</h1>
+      <p class="topo-sub">Custo do laboratório single-node, com preço da lista oficial da AWS</p>
+    </div>
+    <div class="topo-fonte">
+      <div class="topo-acoes">
+        <a class="botao-doc" href="/api/docs">API · OpenAPI 3.1</a>
+        <span class="selo" id="selo-fonte">carregando…</span>
+      </div>
+      <span class="topo-fonte-det" id="fonte-detalhe"></span>
+    </div>
+  </div>
+</header>
+
+<div id="aviso" class="aviso escondido" role="status"></div>
+
+<main>
+
+  <section class="controles cartao">
+    <div class="controle">
+      <label for="horas">Janela de análise</label>
+      <div class="controle-linha">
+        <input type="number" id="horas" min="1" max="8760" step="1" value="168">
+        <span class="unidade">horas</span>
+      </div>
+      <div class="atalhos">
+        <button type="button" data-horas="24">1 dia</button>
+        <button type="button" data-horas="168" class="ativo">1 semana</button>
+        <button type="button" data-horas="730">1 mês</button>
+      </div>
+      <p class="dica" id="dica-janela"></p>
+    </div>
+    <div class="controle direita">
+      <span class="rotulo-bloco">Estado do snapshot de preços</span>
+      <p class="dica" id="snapshot-info"></p>
+      <button type="button" id="recarregar" class="secundario">Recarregar preços</button>
+    </div>
+  </section>
+
+  <section class="controles cartao" id="descoberta">
+    <div class="controle">
+      <label for="regiao">Região</label>
+      <select id="regiao"><option>carregando…</option></select>
+      <p class="dica" id="dica-regiao"></p>
+    </div>
+    <div class="controle">
+      <label for="servico">Serviço</label>
+      <select id="servico"><option>carregando…</option></select>
+      <p class="dica" id="dica-servico"></p>
+    </div>
+    <div class="controle">
+      <label for="modelo">Modelo do node — <span id="total-modelos">…</span></label>
+      <input list="lista-modelos" id="modelo" placeholder="digite para filtrar, ex.: m6i" autocomplete="off">
+      <datalist id="lista-modelos"></datalist>
+      <p class="dica" id="dica-modelo"></p>
+    </div>
+  </section>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="cartao">
+    <h2>Onde o dinheiro vai</h2>
+    <p class="legenda">Cada barra é um grupo da infraestrutura. O total da barra é a soma dos itens na janela escolhida.</p>
+    <div id="barras-grupo" class="barras"></div>
+  </section>
+
+  <section class="cartao">
+    <h2>Linha por linha</h2>
+    <p class="legenda">
+      Clique numa linha para ver <strong>por que</strong> ela existe. O preço unitário vem do snapshot oficial;
+      a quantidade vem do BOM declarado no repositório.
+    </p>
+    <div class="tabela-envolucro">
+      <table class="tabela">
+        <thead>
+          <tr>
+            <th scope="col">Item</th>
+            <th scope="col" class="num">Quantidade</th>
+            <th scope="col">Unidade</th>
+            <th scope="col" class="num">Preço unitário</th>
+            <th scope="col" class="num">Subtotal</th>
+            <th scope="col" class="num">%</th>
+          </tr>
+        </thead>
+        <tbody id="corpo-tabela"></tbody>
+        <tfoot id="rodape-tabela"></tfoot>
+      </table>
+    </div>
+  </section>
+
+  <section class="duas-colunas">
+    <div class="cartao" id="cartao-lacunas">
+      <h2>Lacunas declaradas</h2>
+      <p class="legenda">Itens que existem no BOM e ainda não têm preço no snapshot. Aparecem aqui de propósito: lacuna silenciosa vira número errado.</p>
+      <div id="lacunas"></div>
+    </div>
+    <div class="cartao">
+      <h2>Premissas</h2>
+      <p class="legenda">O que este número assume. Mudou a premissa, mudou o número.</p>
+      <ul id="premissas" class="lista-premissas"></ul>
+    </div>
+  </section>
+
+  <section class="cartao">
+    <h2>Stack deste painel</h2>
+    <p class="legenda">
+      O que roda aqui de verdade — e também o que <strong>não</strong> roda, porque
+      portfólio que só lista ferramenta vira enfeite. Os selos carregam a versão e o
+      papel de cada peça, e as ausências estão declaradas de propósito.
+    </p>
+    <div class="stack" id="stack"></div>
+  </section>
+
+  <section class="cartao">
+    <h2>Procedência do dado</h2>
+    <p class="legenda">
+      Nenhum preço é digitado à mão. Tudo vem da
+      <a href="https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/index.json" rel="noopener">Bulk Price List</a>
+      oficial da AWS — pública, sem credencial — e o snapshot carrega a <code>publicationDate</code> que a própria AWS publica.
+      A coleta roda no host de operação (<code>buscar_precos.py</code>), não no navegador, porque o arquivo do EC2 tem 288,8 MB.
+    </p>
+    <div id="procedencia"></div>
+  </section>
+
+</main>
+
+<footer class="rodape">
+  <p>
+    <strong>Resilience Cloud</strong> · laboratório GitOps ·
+    <a href="/api/docs">API e contrato OpenAPI</a> ·
+    <a href="https://github.com/newbare/homelab-gitops" rel="noopener">repositório</a>
+  </p>
+  <p class="rodape-fino">
+    Preços on-demand em USD, sem impostos. Single node — sem alta disponibilidade, por escolha declarada.
+    Número para janela de implantação; não confundir com custo de operação contínua.
+  </p>
+  <p class="rodape-copyright">© Resilience Cloud — Copyright by Resilience Cloud</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

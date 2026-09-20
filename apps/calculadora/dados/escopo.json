@@ -1,0 +1,167 @@
+{
+    "descricao": "Escopo de entrega da calculadora: os 24 serviços da tabela comparativa AWS/Azure/GCP/Oracle publicada pelo autor. Escopo ABERTO no motor (o catálogo sai do manifest, 440 serviços) e FECHADO na entrega (esta lista).",
+    "fonte": [
+        "Tabela comparativa AWS · Azure · Google Cloud · Oracle Cloud — artigo do autor (2026)",
+        "Cada serviceCode abaixo foi conferido contra o manifest em 2026-09-20 (ver docs/calculadora/01-plano.md §2.1)"
+    ],
+    "como_usar": "Aqui ficam apenas as RAIZES de cada linha da tabela. Os filhos (ex.: S3 por classe de storage, ELB por tipo) NAO sao copiados para ca: eles sao descobertos do campo `templates` do manifest em tempo de execucao. Duplicar o manifest aqui seria criar uma segunda verdade.",
+    "regiao_de_verificacao": {
+        "rotulo_oficial": "US East (N. Virginia)",
+        "codigo_price_list": "us-east-1"
+    },
+    "linhas": [
+        {
+            "tabela": "Elastic Compute Cloud (EC2)",
+            "raizes": [
+                "ec2Enhancement"
+            ]
+        },
+        {
+            "tabela": "Elastic Kubernetes Service (EKS)",
+            "raizes": [
+                "awsEks"
+            ]
+        },
+        {
+            "tabela": "Lambda",
+            "raizes": [
+                "aWSLambda"
+            ]
+        },
+        {
+            "tabela": "Simple Storage Service (S3)",
+            "raizes": [
+                "amazonSimpleStorageServiceGroup"
+            ]
+        },
+        {
+            "tabela": "Elastic Block Store",
+            "raizes": [
+                "amazonElasticBlockStore"
+            ]
+        },
+        {
+            "tabela": "Elastic File System",
+            "raizes": [
+                "amazonEFS"
+            ]
+        },
+        {
+            "tabela": "Virtual Private Cloud",
+            "raizes": [
+                "amazonVirtualPrivateCloud"
+            ]
+        },
+        {
+            "tabela": "Route 53",
+            "raizes": [
+                "amazonRoute53"
+            ]
+        },
+        {
+            "tabela": "Elastic Load Balancing",
+            "raizes": [
+                "elasticLoadBalancing"
+            ]
+        },
+        {
+            "tabela": "Web Application Firewall",
+            "raizes": [
+                "awsWebApplicationFirewall"
+            ]
+        },
+        {
+            "tabela": "RDS",
+            "raizes": [
+                "amazonRDSMySQLDB",
+                "amazonRDSPostgreSQLDB",
+                "amazonRDSMariaDB",
+                "amazonRDSForSQLServer",
+                "amazonRdsForOracle",
+                "amazonRdsForDb2",
+                "amazonAuroraMySQLCompatible",
+                "amazonRDSAuroraPostgreSQLCompatibleDB"
+            ]
+        },
+        {
+            "tabela": "DynamoDB",
+            "raizes": [
+                "amazonDynamoDb"
+            ]
+        },
+        {
+            "tabela": "Redshift",
+            "raizes": [
+                "amazonRedshift"
+            ]
+        },
+        {
+            "tabela": "Elastic MapReduce",
+            "raizes": [
+                "amazonEMR"
+            ]
+        },
+        {
+            "tabela": "Kinesis",
+            "raizes": [
+                "amazonKinesisDataStreams",
+                "amazonKinesisFirehose",
+                "amazonKinesisVideoStreams",
+                "amazonKinesisDataAnalytics"
+            ]
+        },
+        {
+            "tabela": "SageMaker",
+            "raizes": [
+                "amazonSageMaker"
+            ]
+        },
+        {
+            "tabela": "Glue",
+            "raizes": [
+                "awsGlue"
+            ]
+        },
+        {
+            "tabela": "EventBridge",
+            "raizes": [
+                "amazonEventBridge"
+            ]
+        },
+        {
+            "tabela": "Simple Queue Service",
+            "raizes": [
+                "amazonSimpleQueueService"
+            ]
+        },
+        {
+            "tabela": "Simple Notification Service",
+            "raizes": [
+                "amazonSimpleNotificationService"
+            ]
+        },
+        {
+            "tabela": "CloudWatch",
+            "raizes": [
+                "amazonCloudWatch"
+            ]
+        },
+        {
+            "tabela": "CloudFormation",
+            "raizes": [
+                "awsCloudFormation"
+            ]
+        },
+        {
+            "tabela": "Identity and Access Management",
+            "raizes": [],
+            "observacao": "IAM NAO existe no catalogo da calculadora da AWS para precificar — verificado por tres caminhos em 2026-09-20. So `awsIamAccessAnalyzer` existe. Nao tem cobranca propria, entao nao entra. O IAM Identity Center (SSO) tambem ficou FORA DE ESCOPO por decisao do autor."
+        },
+        {
+            "tabela": "Key Management Service",
+            "raizes": [
+                "awsKeyManagementService"
+            ]
+        }
+    ]
+}

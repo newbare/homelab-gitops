@@ -213,8 +213,12 @@ preço (a diferença é a mesma do "lacuna declarada" do coletor atual).
 
 ## 4. Modelo de dados (PostgreSQL)
 
-Banco `calculadora`, usuário `calculadora`, na instância compartilhada
-(`postgresql.postgresql.svc.cluster.local:5432`). Schema `public`.
+Database `calculadora`, usuário `calculadora` (dono do database), na instância
+compartilhada (`postgresql.postgresql.svc.cluster.local:5432`) — o **servidor**
+`postgresql-0`, que já hospeda `backstage`, `keycloak`, `grafana` e os 13
+`backstage_plugin_*`. Dentro do database, o schema `public` (o padrão).
+A distinção servidor × database × schema está em
+[02-f2-carga.md §2.3](02-f2-carga.md#23-onde-o-dado-mora-um-servidor-vários-databases).
 
 ```sql
 -- catálogo: o que existe (vem do manifest)

@@ -41,7 +41,7 @@ fontes oficiais (AWS)                        dado versionado no repositório
           ▼
   (3) GRAVAÇÃO — UMA transação: ou entra tudo, ou a base fica como estava
 
-      PostgreSQL · banco `calculadora` (instância compartilhada)
+      servidor postgresql-0 (um só) · database `calculadora` · schema `public`
       ──────────────────────────────────────────────────────────────────
         mapa_preco     hash do conteúdo → "sem novidade" sem regravar
         preco          vigente | histórico — NUNCA apagado
@@ -157,12 +157,12 @@ auditável, e não um botão que parece não ter funcionado.
 
 ## 2.2 O que AINDA é um passo manual (e o que já não é)
 
-O banco **não** é criado à mão. Há três níveis, e vale saber qual é qual:
+O database **não** é criado à mão. Há três níveis, e vale saber qual é qual:
 
 | o quê | como | quando roda |
 |---|---|---|
-| banco + usuários | `infrastructure/postgresql/init-job.yaml` — Job reconciliado pelo Argo | em todo cluster, inclusive num que já existe |
-| banco + usuários (volume novo) | `configmap.yaml` → `docker-entrypoint-initdb.d` | só na PRIMEIRA inicialização do volume |
+| database + usuário | `infrastructure/postgresql/init-job.yaml` — Job reconciliado pelo Argo | em todo cluster, inclusive num que já existe |
+| database + usuário (volume novo) | `configmap.yaml` → `docker-entrypoint-initdb.d` | só na PRIMEIRA inicialização do volume |
 | tabelas | `make schema` (o Python aplica o `001-schema.sql`) | quando se quiser; é idempotente |
 | preços | `make carga` | quando se quiser (é o botão da F5) |
 
@@ -178,6 +178,70 @@ O que ainda **não** é declarativo: as tabelas e a carga de preços. Aplicar o
 schema pelo próprio Pod, na subida, é o passo natural — e depende de o app passar
 a usar o banco de verdade (F3/F4), que é quando ele ganha credencial no seu
 namespace.
+
+---
+
+### 2.3 Onde o dado mora: um servidor, vários databases
+
+Vocabulário primeiro, porque em português "banco" serve para duas coisas — e essa
+sobreposição já confundiu a leitura deste documento:
+
+```
+servidor (a instância PostgreSQL)   postgresql-0 · imagem postgres:17-alpine · 1 PVC
+  └─ database                       o que CREATE DATABASE cria; a conexão aponta para UM
+       └─ schema                     `public` — já nasce em todo database novo
+            └─ tabela                preco, mapa_preco, carga_log, ...
+```
+
+Medido no cluster em 2026-09-20:
+
+```
+statefulset.apps/postgresql   1/1          ← UM servidor
+pod/postgresql-0              1/1          ← UM processo
+pvc data-postgresql-0         10Gi RWO     ← UM volume
+
+backstage             | backstage   | 7526 kB
+backstage_plugin_app  | backstage   |   17 MB   ← 13 databases que o Backstage criou
+...                     (mais 12 backstage_plugin_*)
+calculadora           | calculadora |   14 MB   ← o que esta fase criou
+grafana               | grafana     | 7361 kB
+keycloak              | keycloak    |   12 MB
+postgres              | postgres    | 7518 kB
+```
+
+**18 databases no mesmo servidor, e nenhum servidor novo criado.** As tabelas
+deste projeto vivem em `calculadora` → schema `public` (11 tabelas).
+
+#### Por que database, e não um schema
+
+Não é escolha nova desta fase: o `create-databases.sql` já criava `backstage`,
+`keycloak` e `grafana` como databases separados — e o Backstage confirma a
+convenção criando **um database por plugin** (os 13 `backstage_plugin_*`).
+
+| | database separado | schema separado |
+|---|---|---|
+| dono e permissões | independentes | compartilhados |
+| backup / restore | por aplicação | tudo junto |
+| nome de tabela repetido | não colide | pode colidir |
+| JOIN entre aplicações | **não dá** | dá |
+
+Nenhuma aplicação aqui precisa de JOIN com as tabelas das outras, e o isolamento
+compensa: juntar num database só acoplaria o ciclo de vida dos nossos dados ao do
+Backstage, e misturaria o dono.
+
+#### O nome do arquivo
+
+`sql/000-banco.sql` cria o **database** — o nome ficou "banco" por ser o
+vocabulário corrente em português. O servidor já existia; o que o arquivo faz é
+`CREATE DATABASE calculadora`, o usuário dono e o `GRANT`.
+
+#### Por que o Job confere 4 databases, e não os 18
+
+O Job verifica o que a **infraestrutura declara**: os 4 databases e 4 usuários do
+`configmap.yaml`. Os 13 `backstage_plugin_*` são criados pelo Backstage em tempo de
+execução — conferi-los deixaria o Job vermelho à toa toda vez que um plugin novo
+fosse instalado. Verificar o que se declara é diferente de verificar o que os
+outros criam por conta própria.
 
 ---
 

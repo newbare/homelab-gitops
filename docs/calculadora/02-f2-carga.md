@@ -7,6 +7,75 @@ precificar **qualquer** serviço — e não só os 10 itens da vitrine.
 
 ---
 
+## A arquitetura, em um desenho
+
+```
+fontes oficiais (AWS)                        dado versionado no repositório
+  ├─ manifest .......... 440 serviços
+  ├─ definição ......... campos do formulário                        (F3)
+  ├─ mapas de preço .... rateCode + price        calculator.aws (gzip)
+  ├─ Price List ........ unidade + descrição     por rateCode
+  └─ correspondência ... família → offerCode  ◄── dados/correspondencia.json
+                                                        (confirmada na F1 por
+                                                         INTERSECÇÃO de rateCode)
+          │
+          │  (1) COLETA — carregar_precos.py fala com api/oficial.py
+          │      cache em disco · gzip tratado · 103 nós do escopo → 53 mapas
+          │      16.402 entradas · 47 mapas sem eixo de região (formato `-calc`)
+          ▼
+  ══════════ PORTÃO · avaliar_portao() — FUNÇÃO PURA, testada sem banco ══════════
+      recusa a carga INTEIRA, sem tocar na base, quando:
+        • publicação sem data legível ....... não se sabe DE QUANDO é o preço
+        • rateCode vigente desapareceu ...... a dimensão que já usávamos saiu
+        • mesmo rateCode, preço ≠ 2 mapas ... a própria oficial se contradiz
+        • mesmo rateCode, valor ≠ Price List as duas fontes discordam
+      ────────────────────────────────────────────────────────────────────────
+      ausência no Price List = AVISO, nunca recusa (142 medidos, irredutíveis)
+          │
+          ▼  aprovado
+  (2) CONSOLIDAÇÃO — o rateCode é a identidade da DIMENSÃO, não do mapa
+      16.402 entradas → 8.726 rateCodes únicos
+      (quase metade é o MESMO rateCode em mais de um mapa; quem declara
+       cada um vai em `atributos.mapas`)
+          │
+          ▼
+  (3) GRAVAÇÃO — UMA transação: ou entra tudo, ou a base fica como estava
+
+      PostgreSQL · banco `calculadora` (instância compartilhada)
+      ──────────────────────────────────────────────────────────────────
+        mapa_preco     hash do conteúdo → "sem novidade" sem regravar
+        preco          vigente | histórico — NUNCA apagado
+        carga_log      o que a carga fez  E  o que ela RECUSOU
+        servico        catálogo do manifest (440, com o pai resolvido)
+        regiao         código (us-east-1) ↔ rótulo (US East (N. Virginia))
+        item_detalhe   rate_code + preço usados NO CÁLCULO — a procedência
+      ──────────────────────────────────────────────────────────────────
+          │
+          ▼
+      o motor agnóstico: formulário gerado da definição (F3) e cálculo com
+      fórmula NOSSA, conferida contra a oficial (F4) — o que a vitrine de
+      10 itens não fazia.
+```
+
+### Onde cada passo roda
+
+```
+  no cluster (reconciliado pelo Argo)
+    Job `postgresql-garantir-bancos`  → garante os bancos e usuários
+         tolera o "já existe" e VERIFICA no fim: se faltar algo, o Job falha
+         dizendo o nome do que faltou
+    StatefulSet postgresql + PVC      → onde o dado mora
+    (o app da calculadora ainda serve o snapshot JSON; passa a ler o banco
+     em F3/F4, quando ganhar credencial no seu próprio namespace)
+
+  no host de operação (esta máquina)
+    make banco-bg   → port-forward 127.0.0.1:5432
+    make schema     → aplica o 001-schema.sql (idempotente)
+    make carga      → coleta, confere no portão e grava
+```
+
+---
+
 ## 1. Como rodar (um comando)
 
 ```bash

@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: calculadora
+  namespace: argocd
+  annotations:
+    # Wave 9: último da fila. A calculadora não depende de ninguém do cluster,
+    # mas depende do NAMESPACE, que é criado pela Application `namespaces`
+    # (wave -1). Sobra ela por último porque é a mais nova, não porque precisa.
+    argocd.argoproj.io/sync-wave: "9"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    # Aponta para o PRÓPRIO repositório: o chart mora junto do código do app
+    # (`apps/calculadora`), porque o app é feito de arquivos de texto que viram
+    # ConfigMap — não de uma imagem. Assim `git push` é o deploy, sem build.
+    repoURL: https://github.com/newbare/homelab-gitops.git
+    targetRevision: main
+    # O ArgoCD detecta Helm sozinho por causa do Chart.yaml neste diretório.
+    path: apps/calculadora
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: calculadora
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      # O namespace é declarado em infrastructure/namespaces/, como os outros.
+      - CreateNamespace=false

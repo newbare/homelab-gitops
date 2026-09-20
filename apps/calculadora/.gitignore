@@ -1,0 +1,9 @@
+# Bytecode e ambiente local — NÃO versionar.
+__pycache__/
+*.pyc
+.venv/
+
+# ⚠️ `dados/prices.json` NÃO é ignorado de propósito: o snapshot de preços é
+# evidência, não subproduto. Ele carrega a `publicationDate` da AWS e é o que
+# um documento cita. Gerado, sim — e versionado, porque é o registro de quando
+# aquele número foi lido.

@@ -1,0 +1,26 @@
+# O que NÃO faz parte do chart.
+#
+# Existe por um motivo concreto: sem isto, o Helm percorre o `.venv` dos testes
+# e emite aviso de symlink para cada binário do Python ("found symbolic link in
+# path ... Contents of linked file included and used"). Três problemas:
+#
+#   1. o loader percorre milhares de arquivos que não entram em ConfigMap
+#      nenhum — o `.Files.Glob` só lê web/, api/, dados/ e assets/;
+#   2. o log de render fica cheio de ruído, e ruído esconde aviso de verdade;
+#   3. o chart passa a "pesar" o que ele não usa.
+#
+# No cluster isto não aparecia, porque `.venv/` é gitignored e o ArgoCD clona do
+# Git — ou seja, era um problema invisível em produção e visível só para quem
+# desenvolve. Os dois ambientes têm de renderizar a MESMA coisa.
+.venv
+.venv/
+__pycache__
+__pycache__/
+*.pyc
+
+# Bancada, não deploy: não fazem parte do chart entregue.
+tests
+tests/
+Makefile
+requirements-dev.txt
+.gitignore

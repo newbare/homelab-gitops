@@ -1,0 +1,427 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Calculadora Resilience — API de custo AWS",
+    "version": "1.0.0",
+    "summary": "Precifica o laboratório single-node em AWS com preços da lista oficial.",
+    "description": "API de leitura que cruza um BOM DECLARADO (dados/bom.json) com o SNAPSHOT de preços da lista oficial da AWS (dados/prices.json).\n\nDuas decisões que a especificação registra de propósito:\n\n1. **Nenhum preço mora no código.** Todos vêm do snapshot, que carrega a `publicationDate` publicada pela própria AWS. A API devolve a procedência junto do número.\n\n2. **Nem o catálogo mora no código.** Regiões, serviços e modelos de EC2 são descobertos da fonte oficial: 106 regiões, 271 serviços e 1.249 modelos na coleta de referência. O cliente descobre o que existe pelas rotas `/api/regioes`, `/api/servicos` e `/api/catalogo`.\n\nEscopo: os preços valem para a região COLETADA. A lista de regiões traz todas as que o serviço tem, mas só a coletada é precificável — oferecer as outras sem dado seria devolver número inventado.",
+    "contact": {
+      "name": "Resilience Cloud — laboratório GitOps",
+      "url": "https://github.com/newbare/homelab-gitops"
+    },
+    "license": {
+      "name": "Uso interno do laboratório",
+      "identifier": "LicenseRef-Interno"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://calculadora.local",
+      "description": "No cluster (Ingress nginx, TLS self-signed interno)"
+    },
+    {
+      "url": "http://localhost:8080",
+      "description": "Local, para desenvolvimento e testes"
+    }
+  ],
+  "tags": [
+    { "name": "calculo", "description": "O número: custo da janela pedida e projeção mensal." },
+    { "name": "dados", "description": "O que alimenta a conta: BOM declarado e snapshot de preços." },
+    { "name": "descoberta", "description": "O que a fonte oficial oferece: regiões, serviços e modelos. É daqui que os seletores da tela se alimentam — nada de lista escrita no código." },
+    { "name": "meta", "description": "Procedência, estado do serviço e esta especificação." }
+  ],
+  "paths": {
+    "/api/calcular": {
+      "get": {
+        "tags": ["calculo"],
+        "summary": "Calcula o custo da janela pedida",
+        "operationId": "calcular",
+        "description": "Devolve o total, o detalhamento linha a linha, o total por grupo e a projeção mensal (730 h).\n\n**Seleção de modelo:** qualquer parâmetro cujo nome seja o `id` de um item do BOM é tratado como escolha daquele item. É assim que o seletor de modelo funciona sem o servidor conhecer o nome de nenhum modelo:\n\n```\n/api/calcular?horas=168&node-principal=t3.large&host-terraform=t3.small\n```\n\nO modelo pedido é resolvido no catálogo descoberto. Modelo que não existe na região coletada devolve **400**, e não um número silenciosamente errado.",
+        "parameters": [
+          {
+            "name": "horas",
+            "in": "query",
+            "required": false,
+            "description": "Janela de análise em horas. Faixa aceita: 1 a 8760. Padrão: o `horas_padrao` do BOM (168 = uma semana).",
+            "schema": { "type": "number", "minimum": 1, "maximum": 8760, "default": 168, "examples": [1, 24, 168, 730] }
+          },
+          {
+            "name": "node-principal",
+            "in": "query",
+            "required": false,
+            "description": "Modelo de EC2 do node que roda o MicroK8s. Qualquer tipo do catálogo; o padrão é o `padrao` declarado no BOM.",
+            "schema": { "type": "string", "examples": ["m6i.xlarge", "t3.xlarge", "r6i.large", "c7g.large"] }
+          },
+          {
+            "name": "host-terraform",
+            "in": "query",
+            "required": false,
+            "description": "Modelo de EC2 do host de operação (substituto do bastion).",
+            "schema": { "type": "string", "default": "t3.micro" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalhamento calculado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ResultadoCalculo" }
+              }
+            }
+          },
+          "400": {
+            "description": "Parâmetro fora de faixa, não numérico, ou modelo que não existe no catálogo da região",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Erro" } }
+            }
+          },
+          "500": {
+            "description": "Snapshot ausente ou unidade não tratada — problema de DADO, não de pedido",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Erro" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/regioes": {
+      "get": {
+        "tags": ["descoberta"],
+        "summary": "Regiões que a fonte oficial oferece",
+        "operationId": "listarRegioes",
+        "description": "Array de regiões lido do `region_index.json` do serviço, mais qual delas foi COLETADA. Só a coletada é precificável — o campo `observacao` diz isso na resposta, para o cliente não oferecer o que não tem dado.",
+        "responses": {
+          "200": {
+            "description": "Regiões disponíveis e a coletada",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Regioes" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/servicos": {
+      "get": {
+        "tags": ["descoberta"],
+        "summary": "Serviços publicados no índice raiz da AWS",
+        "operationId": "listarServicos",
+        "description": "Todos os serviços com preço publicado (271 na coleta de referência), lidos do índice raiz da lista oficial.",
+        "responses": {
+          "200": {
+            "description": "Catálogo de serviços",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Servicos" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/catalogo": {
+      "get": {
+        "tags": ["descoberta"],
+        "summary": "Modelos de EC2 da região coletada",
+        "operationId": "listarCatalogo",
+        "description": "Todos os tipos de instância descobertos do arquivo oficial da região (1.249 em us-east-1), com preço on-demand, vCPU, memória e família. É o array que alimenta o seletor de modelo da tela.",
+        "parameters": [
+          {
+            "name": "busca",
+            "in": "query",
+            "required": false,
+            "description": "Substring do tipo de instância (ex.: `m6i`).",
+            "schema": { "type": "string", "examples": ["m6i", "c7g", "metal"] }
+          },
+          {
+            "name": "familia",
+            "in": "query",
+            "required": false,
+            "description": "Substring da família (ex.: `Memory optimized`).",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "limite",
+            "in": "query",
+            "required": false,
+            "description": "Máximo de modelos devolvidos (teto de 1500).",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 1500, "default": 200 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Modelos encontrados",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Catalogo" } }
+            }
+          },
+          "400": {
+            "description": "`limite` não numérico",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Erro" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/bom": {
+      "get": {
+        "tags": ["dados"],
+        "summary": "BOM declarado — o que compõe a infraestrutura",
+        "operationId": "obterBom",
+        "description": "Bill of materials versionado no repositório. Cada linha traz quantidade, unidade de conta, grupo, se é opcional, e o **porquê** de existir. Nenhuma quantidade é inferida: está declarada.",
+        "responses": {
+          "200": {
+            "description": "BOM como está no Git",
+            "content": {
+              "application/json": { "schema": { "type": "object" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/precos": {
+      "get": {
+        "tags": ["dados"],
+        "summary": "Snapshot de preços da lista oficial",
+        "operationId": "obterPrecos",
+        "description": "Snapshot completo: itens precificados, catálogo de instâncias, regiões, serviços e a procedência (incluindo os arrays descobertos e as famílias de produto encontradas em cada arquivo).",
+        "responses": {
+          "200": {
+            "description": "Snapshot",
+            "content": {
+              "application/json": { "schema": { "type": "object" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/fonte": {
+      "get": {
+        "tags": ["meta"],
+        "summary": "Procedência do dado",
+        "operationId": "obterFonte",
+        "description": "De onde cada preço veio: URL do arquivo, `publicationDate` publicada pela AWS, número de linhas varridas e as famílias de produto que o arquivo realmente continha. Também devolve os problemas e avisos da última coleta — filtro frouxo aparece aqui.",
+        "responses": {
+          "200": {
+            "description": "Procedência",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Fonte" } }
+            }
+          }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "tags": ["meta"],
+        "summary": "Sonda de saúde",
+        "operationId": "healthz",
+        "description": "Usado pelas probes de readiness e liveness do Kubernetes.",
+        "responses": {
+          "200": {
+            "description": "Serviço de pé",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "servico": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/openapi.json": {
+      "get": {
+        "tags": ["meta"],
+        "summary": "Esta especificação",
+        "operationId": "obterOpenapi",
+        "description": "A especificação é o ARTEFATO DE DESENHO (API first): ela é escrita antes do código e vive versionada no repositório, em `api/openapi.json`. Importável em Swagger UI, Postman, Insomnia e geradores de cliente.",
+        "responses": {
+          "200": {
+            "description": "Documento OpenAPI",
+            "content": {
+              "application/json": { "schema": { "type": "object" } }
+            }
+          }
+        }
+      }
+    },
+    "/api/docs": {
+      "get": {
+        "tags": ["meta"],
+        "summary": "Tela de documentação",
+        "operationId": "docs",
+        "description": "Renderiza esta especificação no navegador, com botão de execução por operação. É a tela da apresentação.",
+        "responses": {
+          "200": {
+            "description": "Página HTML",
+            "content": { "text/html": { "schema": { "type": "string" } } }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Erro": {
+        "type": "object",
+        "required": ["erro", "codigo"],
+        "properties": {
+          "erro": { "type": "string", "description": "Mensagem em português, escrita para ser lida por gente." },
+          "codigo": { "type": "integer", "description": "Mesmo código do HTTP." }
+        }
+      },
+      "ItemCalculado": {
+        "type": "object",
+        "description": "Uma linha do BOM já cruzada com o preço.",
+        "required": ["id", "descricao", "grupo", "quantidade", "unidade_conta", "preco_ref", "subtotal", "sem_preco"],
+        "properties": {
+          "id": { "type": "string", "examples": ["node-principal"] },
+          "descricao": { "type": "string" },
+          "grupo": { "type": "string", "enum": ["computacao", "armazenamento", "rede", "operacao", "outros"] },
+          "quantidade": { "type": "number", "description": "Quantidade declarada no BOM, na unidade de conta." },
+          "unidade_conta": { "type": "string", "examples": ["Hrs", "GB-Mo", "Requests", "GB"] },
+          "preco_ref": { "type": "string", "description": "Chave do preço no snapshot, ou `catalogo_ec2` quando o preço vem do catálogo." },
+          "modelo": { "type": "string", "description": "Presente quando o preço vem do catálogo: o tipo de instância escolhido." },
+          "sem_preco": { "type": "boolean" },
+          "motivo": { "type": "string", "description": "Presente quando `sem_preco` é true. Lacuna declarada, nunca silenciosa." },
+          "preco_unitario": { "type": "number" },
+          "unidade_oficial": { "type": "string", "description": "Unidade como a AWS publica." },
+          "fator": { "type": "number", "description": "Fator aplicado à quantidade. Para `GB-Mo` é `horas / 730` — pro-rata, porque a AWS cobra por hora." },
+          "quantidade_efetiva": { "type": "number" },
+          "subtotal": { "type": "number" },
+          "tipo_uso": { "type": "string", "description": "O `usageType` oficial: é o identificador de máquina que garante que o preço é o certo." },
+          "sku": { "type": "string" },
+          "preco_descricao": { "type": "string", "description": "A descrição literal do arquivo da AWS." },
+          "opcional": { "type": "boolean" },
+          "por_que": { "type": "string", "description": "A justificativa da linha, escrita no BOM." }
+        }
+      },
+      "Lacuna": {
+        "type": "object",
+        "required": ["id", "descricao", "motivo"],
+        "properties": {
+          "id": { "type": "string" },
+          "descricao": { "type": "string" },
+          "motivo": { "type": "string" }
+        }
+      },
+      "Procedencia": {
+        "type": "object",
+        "properties": {
+          "descricao": { "type": "string" },
+          "base": { "type": "string", "format": "uri" },
+          "endpoint_api_filtrada": { "type": "string" },
+          "observacao_api_filtrada": { "type": "string" },
+          "servicos": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "publicationDate": { "type": "string" },
+                "version": { "type": "string" },
+                "url_csv": { "type": "string" },
+                "linhas_varridas": { "type": "integer" },
+                "regioes_disponiveis": { "type": "integer" },
+                "familias_no_arquivo": { "type": "object", "additionalProperties": { "type": "integer" } }
+              }
+            }
+          }
+        }
+      },
+      "Fonte": {
+        "type": "object",
+        "properties": {
+          "fonte": { "$ref": "#/components/schemas/Procedencia" },
+          "gerado_em": { "type": "string", "format": "date-time" },
+          "regiao": { "type": "string" },
+          "problemas": { "type": "array", "items": { "type": "string" } },
+          "avisos": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "ResultadoCalculo": {
+        "type": "object",
+        "required": ["horas", "total", "total_por_hora", "total_por_dia", "por_grupo", "itens", "lacunas", "selecao", "modelos_disponiveis"],
+        "properties": {
+          "horas": { "type": "number" },
+          "regiao": { "type": "string" },
+          "localidade": { "type": "string" },
+          "total": { "type": "number", "description": "Total na janela pedida, em USD." },
+          "total_por_hora": { "type": "number" },
+          "total_por_dia": { "type": "number" },
+          "por_grupo": {
+            "type": "object",
+            "description": "Subtotal por grupo, do maior para o menor.",
+            "additionalProperties": { "type": "number" }
+          },
+          "itens": { "type": "array", "items": { "$ref": "#/components/schemas/ItemCalculado" } },
+          "lacunas": { "type": "array", "items": { "$ref": "#/components/schemas/Lacuna" } },
+          "selecao": {
+            "type": "object",
+            "description": "Escolhas aplicadas nesta chamada (item do BOM → modelo).",
+            "additionalProperties": { "type": "string" }
+          },
+          "modelos_disponiveis": { "type": "integer", "description": "Tamanho do catálogo de EC2 da região coletada." },
+          "gerado_em": { "type": "string", "format": "date-time" },
+          "procedencia": { "$ref": "#/components/schemas/Procedencia" },
+          "premissas": { "type": "array", "items": { "type": "string" } },
+          "mes": {
+            "type": "object",
+            "description": "Mesmo cálculo com janela de 730 h, para responder 'e se eu deixar ligado?'.",
+            "properties": { "horas": { "type": "number" }, "total": { "type": "number" } }
+          },
+          "bom": { "type": "object" }
+        }
+      },
+      "Regioes": {
+        "type": "object",
+        "properties": {
+          "coletada": { "type": "string" },
+          "localidade": { "type": "string" },
+          "total": { "type": "integer" },
+          "regioes": { "type": "array", "items": { "type": "string" } },
+          "observacao": { "type": "string" }
+        }
+      },
+      "Servicos": {
+        "type": "object",
+        "properties": {
+          "total": { "type": "integer" },
+          "servicos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": { "codigo": { "type": "string" }, "nome": { "type": "string" } }
+            }
+          },
+          "observacao": { "type": "string" }
+        }
+      },
+      "Catalogo": {
+        "type": "object",
+        "properties": {
+          "total_no_catalogo": { "type": "integer" },
+          "total_filtrado": { "type": "integer" },
+          "regiao": { "type": "string" },
+          "modelos": { "type": "array", "items": { "$ref": "#/components/schemas/CatalogoModelo" } }
+        }
+      },
+      "CatalogoModelo": {
+        "type": "object",
+        "required": ["tipo", "preco", "unidade"],
+        "properties": {
+          "tipo": { "type": "string", "examples": ["m6i.xlarge"] },
+          "preco": { "type": "string", "description": "Preço on-demand como a AWS publica (string, para não perder precisão)." },
+          "unidade": { "type": "string" },
+          "vcpu": { "type": "string" },
+          "memoria": { "type": "string" },
+          "familia": { "type": "string" },
+          "sku": { "type": "string" }
+        }
+      }
+    }
+  }
+}

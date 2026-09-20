@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OpenAPI — Calculadora Resilience</title>
+<link rel="icon" href="/logo-resilience-icon.png">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  /* Só o que é específico da documentação. Cores e tipografia vêm dos tokens
+     de marca definidos em styles.css — nada de paleta paralela. */
+  .doc-topo { background: var(--cor-papel); border-bottom: 1px solid var(--bui-border-1); }
+  .doc-topo-conteudo { max-width: 1180px; margin: 0 auto; padding: 14px 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .doc-topo img { height: 42px; }
+  .doc-topo h1 { font-size: 19px; margin: 0; }
+  .doc-topo p { margin: 2px 0 0; color: var(--bui-fg-secondary); font-size: 13px; }
+
+  .info-caixa { background: var(--cor-papel); border: 1px solid var(--bui-border-1); border-left: 4px solid var(--bui-bg-solid); border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; box-shadow: var(--sombra); }
+  .info-caixa pre.branco { white-space: pre-wrap; font: inherit; font-size: 13.5px; color: var(--bui-fg-secondary); margin: 10px 0 0; }
+  .versoes { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; font-size: 12.5px; }
+  .pilula { background: var(--bui-bg-app); border: 1px solid var(--bui-border-1); border-radius: 999px; padding: 3px 11px; color: var(--bui-fg-secondary); }
+  .pilula forte { color: var(--bui-fg-primary); }
+
+  .tag-bloco { margin-top: 26px; }
+  .tag-titulo { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+  .tag-titulo h2 { font-size: 16px; }
+  .tag-desc { color: var(--bui-fg-secondary); font-size: 13px; margin: 0 0 12px; }
+
+  .op { background: var(--cor-papel); border: 1px solid var(--bui-border-1); border-radius: 10px; margin-bottom: 10px; overflow: hidden; box-shadow: var(--sombra); }
+  .op-cabecalho { display: flex; align-items: center; gap: 12px; padding: 12px 16px; cursor: pointer; flex-wrap: wrap; }
+  .op-cabecalho:hover { background: var(--bui-bg-app); }
+  .metodo { background: var(--bui-bg-solid); color: var(--bui-fg-solid); font-weight: 700; font-size: 11.5px; letter-spacing: .05em; border-radius: 6px; padding: 3px 9px; }
+  .caminho { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13.5px; font-weight: 600; }
+  .resumo { color: var(--bui-fg-secondary); font-size: 13px; flex: 1 1 240px; }
+  .seta { color: var(--bui-fg-secondary); font-size: 12px; }
+
+  .op-corpo { border-top: 1px solid var(--bui-border-1); padding: 16px; display: none; }
+  .op.aberta .op-corpo { display: block; }
+  .op-corpo h4 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--bui-fg-secondary); }
+  .op-corpo p { margin: 0 0 14px; font-size: 13.5px; color: var(--bui-fg-secondary); }
+  .op-corpo p code, .op-corpo li code { font-size: 12.5px; }
+
+  table.parametros { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px; }
+  table.parametros th, table.parametros td { text-align: left; padding: 7px 9px; border-bottom: 1px solid var(--bui-border-1); vertical-align: top; }
+  table.parametros th { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--bui-fg-secondary); }
+  table.parametros td.nome { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 600; white-space: nowrap; }
+  .obrig { color: var(--cor-alerta); font-weight: 700; font-size: 11px; }
+
+  .executor { background: var(--bui-bg-app); border: 1px solid var(--bui-border-1); border-radius: 8px; padding: 12px; }
+  .executor-linha { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .executor-linha input { flex: 1 1 320px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; padding: 7px 9px; border: 1px solid var(--bui-border-2); border-radius: 6px; }
+  pre.saida { background: #1a202c; color: #f7fafc; border-radius: 8px; padding: 12px; margin: 12px 0 0; overflow: auto; max-height: 380px; font-size: 12px; line-height: 1.5; }
+  .status { font-size: 12.5px; font-weight: 600; }
+  .status.ok { color: var(--cor-ok); }
+  .status.ruim { color: #c53030; }
+  .curl { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: var(--bui-fg-secondary); background: var(--bui-bg-app); border: 1px dashed var(--bui-border-2); border-radius: 6px; padding: 8px 10px; margin-bottom: 10px; overflow-x: auto; white-space: pre; }
+  .esquema { font-size: 12.5px; color: var(--bui-fg-secondary); }
+</style>
+</head>
+<body>
+
+<header class="doc-topo">
+  <div class="doc-topo-conteudo">
+    <img src="/logo-resilience-full.png" alt="Resilience Cloud">
+    <div>
+      <h1>OpenAPI — API de custo AWS</h1>
+      <p>Especificação como artefato de desenho: escrita antes do código e versionada no repositório</p>
+    </div>
+    <div style="margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;">
+      <a class="pilula" href="/api/openapi.json" target="_blank" rel="noopener">spec crua (JSON)</a>
+      <a class="pilula" href="/">calculadora</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="info-caixa" id="cabecalho">
+    <p class="legenda" style="margin:0">Carregando a especificação…</p>
+  </div>
+  <div id="operacoes"></div>
+</main>
+
+<footer class="rodape">
+  <p><strong>Resilience Cloud</strong> · laboratório GitOps ·
+    <a href="https://github.com/newbare/homelab-gitops" rel="noopener">repositório</a></p>
+  <p class="rodape-fino">
+    Página servida pelo próprio processo da API, sem CDN e sem dependência externa — o laboratório
+    é on-premise e a apresentação acontece onde o wi-fi não ajuda. A especificação é importável em
+    Swagger UI, Postman, Insomnia e geradores de cliente.
+  </p>
+</footer>
+
+<script>
+'use strict';
+
+const escapar = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* Referência de schema vira o NOME do schema: numa tela didática, o nome
+   ensina mais que a árvore inteira expandida. */
+function nomeSchema(schema) {
+  if (!schema) return '—';
+  if (schema.$ref) return schema.$ref.split('/').pop();
+  if (schema.type === 'array' && schema.items) return 'array de ' + nomeSchema(schema.items);
+  if (schema.enum) return schema.enum.join(' | ');
+  return schema.type || 'objeto';
+}
+
+function valorPadrao(parametro) {
+  const s = parametro.schema || {};
+  if (s.default !== undefined) return String(s.default);
+  if (s.examples && s.examples.length) return String(s.examples[0]);
+  return '';
+}
+
+function cartaoDeOperacao(rota, metodo, op) {
+  const parametros = op.parameters || [];
+  const campos = parametros
+    .map((p) => `
+      <tr>
+        <td class="nome">${escapar(p.name)}${p.in === 'path' ? '' : ''}</td>
+        <td>${p.required ? '<span class="obrig">obrigatório</span>' : 'opcional'}</td>
+        <td>${escapar(p.schema?.type || 'string')}${p.schema?.default !== undefined ? ` <span class="esquema">· padrão ${escapar(p.schema.default)}</span>` : ''}</td>
+        <td>${escapar(p.description || '')}</td>
+      </tr>`)
+    .join('');
+
+  const respostas = Object.entries(op.responses || {})
+    .map(([codigo, r]) => `<li><code>${codigo}</code> — ${escapar(r.description || '')} <span class="esquema">(${escapar(nomeSchema(r.content?.['application/json']?.schema))})</span></li>`)
+    .join('');
+
+  const entradas = parametros
+    .map((p) => `<input data-param="${escapar(p.name)}" placeholder="${escapar(p.name)}" value="${escapar(valorPadrao(p))}">`)
+    .join('');
+
+  return `
+    <article class="op" data-rota="${escapar(rota)}">
+      <div class="op-cabecalho">
+        <span class="metodo">${escapar(metodo.toUpperCase())}</span>
+        <span class="caminho">${escapar(rota)}</span>
+        <span class="resumo">${escapar(op.summary || '')}</span>
+        <span class="seta">▾</span>
+      </div>
+      <div class="op-corpo">
+        <h4>Para que serve</h4>
+        <p>${escapar(op.description || '').replace(/\n/g, '<br>')}</p>
+
+        ${parametros.length ? `
+          <h4>Parâmetros</h4>
+          <table class="parametros">
+            <thead><tr><th>Nome</th><th>Obrigatório</th><th>Tipo</th><th>Descrição</th></tr></thead>
+            <tbody>${campos}</tbody>
+          </table>` : ''}
+
+        <h4>Respostas</h4>
+        <ul style="margin:0 0 16px; padding-left:18px; font-size:13.5px; color:var(--bui-fg-secondary)">${respostas}</ul>
+
+        <h4>Executar agora</h4>
+        <div class="executor">
+          ${parametros.length ? `<div class="executor-linha">${entradas}</div>` : ''}
+          <div class="executor-linha" style="margin-top:8px">
+            <button class="secundario" data-acao="executar">Executar</button>
+            <span class="status" data-papel="status"></span>
+          </div>
+          <div class="curl" data-papel="curl"></div>
+          <pre class="saida escondido" data-papel="saida"></pre>
+        </div>
+      </div>
+    </article>`;
+}
+
+function montarUrl(cartao, rota) {
+  const valores = [...cartao.querySelectorAll('input[data-param]')]
+    .filter((i) => i.value !== '')
+    .map((i) => `${encodeURIComponent(i.dataset.param)}=${encodeURIComponent(i.value)}`);
+  return rota + (valores.length ? '?' + valores.join('&') : '');
+}
+
+function atualizarCurl(cartao, rota) {
+  const url = montarUrl(cartao, rota);
+  cartao.querySelector('[data-papel="curl"]').textContent = `curl -s "${location.origin}${url}" | python3 -m json.tool`;
+}
+
+async function executar(cartao, rota) {
+  const status = cartao.querySelector('[data-papel="status"]');
+  const saida = cartao.querySelector('[data-papel="saida"]');
+  const url = montarUrl(cartao, rota);
+  status.textContent = 'executando…';
+  status.className = 'status';
+  try {
+    const resposta = await fetch(url, { cache: 'no-store' });
+    const texto = await resposta.text();
+    status.textContent = `HTTP ${resposta.status} · ${texto.length} bytes`;
+    status.className = 'status ' + (resposta.ok ? 'ok' : 'ruim');
+    let bonito = texto;
+    try {
+      bonito = JSON.stringify(JSON.parse(texto), null, 2);
+    } catch (erro) { /* resposta não é JSON (ex.: HTML) — mostra como veio */ }
+    const cortado = bonito.length > 20000 ? bonito.slice(0, 20000) + '\n... (cortado para a tela)' : bonito;
+    saida.textContent = cortado;
+    saida.classList.remove('escondido');
+  } catch (erro) {
+    status.textContent = 'falhou: ' + erro.message;
+    status.className = 'status ruim';
+  }
+}
+
+(async function iniciar() {
+  try {
+    const spec = await (await fetch('/api/openapi.json', { cache: 'no-store' })).json();
+
+    document.getElementById('cabecalho').innerHTML = `
+      <h2 style="margin:0 0 6px">${escapar(spec.info.title)}</h2>
+      <div class="versoes">
+        <span class="pilula">OpenAPI <forte>${escapar(spec.openapi)}</forte></span>
+        <span class="pilula">versão da API <forte>${escapar(spec.info.version)}</forte></span>
+        <span class="pilula"><forte>${Object.keys(spec.paths).length}</forte> rotas</span>
+        <span class="pilula">${escapar((spec.servers || []).length)} servidores</span>
+      </div>
+      <pre class="branco">${escapar(spec.info.description || '')}</pre>
+      <div class="versoes">${(spec.servers || []).map((s) => `<span class="pilula"><forte>${escapar(s.url)}</forte> · ${escapar(s.description || '')}</span>`).join('')}</div>`;
+
+    const porTag = {};
+    for (const [rota, metodos] of Object.entries(spec.paths)) {
+      for (const [metodo, op] of Object.entries(metodos)) {
+        const tag = (op.tags || ['outros'])[0];
+        (porTag[tag] = porTag[tag] || []).push([rota, metodo, op]);
+      }
+    }
+
+    const alvo = document.getElementById('operacoes');
+    alvo.innerHTML = (spec.tags || [])
+      .filter((t) => porTag[t.name])
+      .map((t) => `
+        <section class="tag-bloco">
+          <div class="tag-titulo"><h2>${escapar(t.name)}</h2><span class="pilula">${porTag[t.name].length} rota(s)</span></div>
+          <p class="tag-desc">${escapar(t.description || '')}</p>
+          ${porTag[t.name].map(([rota, metodo, op]) => cartaoDeOperacao(rota, metodo, op)).join('')}
+        </section>`)
+      .join('');
+
+    alvo.querySelectorAll('.op').forEach((cartao) => {
+      const rota = cartao.dataset.rota;
+      cartao.querySelector('.op-cabecalho').addEventListener('click', () => {
+        cartao.classList.toggle('aberta');
+        if (cartao.classList.contains('aberta')) atualizarCurl(cartao, rota);
+      });
+      cartao.querySelectorAll('input[data-param]').forEach((i) =>
+        i.addEventListener('input', () => atualizarCurl(cartao, rota)));
+      cartao.querySelector('[data-acao="executar"]').addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        executar(cartao, rota);
+      });
+    });
+  } catch (erro) {
+    document.getElementById('cabecalho').innerHTML =
+      `<p><strong>Não foi possível carregar a especificação.</strong> ${escapar(erro.message)}</p>` +
+      '<p class="legenda">A spec é servida pelo mesmo processo: se o Pod acabou de subir, aguarde e recarregue.</p>';
+  }
+})();
+</script>
+</body>
+</html>

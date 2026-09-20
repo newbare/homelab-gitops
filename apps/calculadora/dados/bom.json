@@ -1,0 +1,150 @@
+{
+  "nome": "Laboratório Resilience Cloud — single node em AWS",
+  "regiao": "us-east-1",
+  "localidade": "US East (N. Virginia)",
+  "horas_padrao": 168,
+  "janela": "1 semana (168 h) — a janela da implantação e da apresentação",
+  "premissas": [
+    "Linhas com `quantidade: 'janela'` são as que ficam ligadas o TEMPO TODO: a quantidade delas É a janela pedida (168 h na semana, 730 h no mês). É o que faz a projeção mensal custar ~4,3x a semana em vez de repetir o mesmo número — bug real que os testes pegaram.",
+    "SINGLE NODE, SEM ALTA DISPONIBILIDADE. É uma escolha declarada, não um descuido: numa janela de apresentação de 7 dias o segundo node não paga o próprio custo. Em produção, esta linha muda de tamanho e o número aqui deixa de valer.",
+    "Preços ON-DEMAND. Em 7 dias não existe Reserved Instance nem Savings Plan: os dois exigem compromisso de 1 a 3 anos, então on-demand é a única resposta honesta.",
+    "GB-Mo é pro-rateado por hora (730 h/mês), que é como a AWS efetivamente cobra disco e storage — não se paga um mês inteiro por uma semana.",
+    "SEM NAT Gateway e sem VPC endpoint: o host fica em subnet pública com security group que NÃO abre porta 22, e o acesso é por SSM Session Manager. Um NAT custaria mais que o próprio host do Terraform.",
+    "O Floci (emulador de AWS) NÃO existe na AWS. Ele desaparece da topologia, e com ele os flags skip_* do provider Terraform — na AWS o ambiente real exige validação de credencial de verdade.",
+    "A saída para internet (egress) foi a linha mais difícil de localizar, e vale registrar por quê: ela NÃO está no arquivo do EC2 (lá existe só transferência entre regiões, a US$ 0,02/GB) nem no do VPC. Mora no offer AWSDataTransfer, e só o primeiro escalão (StartingRange 0) é o preço de tabela — 0,085, 0,07 e 0,05 são faixas seguintes, e uma variante `Global-*` casa com busca por substring e traz US$ 0,00. Preço achado errado é pior que preço ausente: o ausente alguém corrige."
+  ],
+  "itens": [
+    {
+      "id": "node-principal",
+      "descricao": "EC2 do node único — roda Istio, Backstage, Keycloak, PostgreSQL, Prometheus/Grafana/Kiali/Jaeger e ArgoCD no mesmo kernel",
+      "preco_ref": "catalogo_ec2",
+      "padrao": "m6i.xlarge",
+      "quantidade": "janela",
+      "unidade_conta": "Hrs",
+      "grupo": "computacao",
+      "opcional": false,
+      "por_que": "4 vCPU / 16 GiB reproduz o homelab. O modelo NÃO está fixo: o preço vem do catálogo de 1.249 tipos descoberto do arquivo oficial da região, e o seletor da tela troca o modelo em tempo de execução."
+    },
+    {
+      "id": "disco-sistema",
+      "descricao": "EBS gp3 — disco de sistema do node (120 GB, o SSD do homelab)",
+      "preco_ref": "ebs.gp3",
+      "quantidade": 120,
+      "unidade_conta": "GB-Mo",
+      "grupo": "armazenamento",
+      "opcional": false,
+      "por_que": "gp3 por GB, sem IOPS provisionado: para laboratório, o baseline de 3.000 IOPS já basta e provisionar a mais custa mais."
+    },
+    {
+      "id": "disco-dados",
+      "descricao": "EBS gp3 — disco de dados/PVCs do node (500 GB, o HD do homelab)",
+      "preco_ref": "ebs.gp3",
+      "quantidade": 500,
+      "unidade_conta": "GB-Mo",
+      "grupo": "armazenamento",
+      "opcional": false,
+      "por_que": "Aqui vivem os PersistentVolumes: PostgreSQL, Jaeger e Grafana. É a segunda maior linha e o primeiro lugar a olhar se o custo incomodar."
+    },
+    {
+      "id": "ipv4-node",
+      "descricao": "Endereço IPv4 público do node",
+      "preco_ref": "ipv4.publico.em_uso",
+      "quantidade": "janela",
+      "unidade_conta": "Hrs",
+      "grupo": "rede",
+      "opcional": false,
+      "por_que": "Desde 2024-02 a AWS cobra por hora por IPv4 público EM USO. É linha pequena e frequentemente esquecida em estimativa."
+    },
+    {
+      "id": "host-terraform",
+      "descricao": "EC2 t3.micro — host de operação do Terraform (o substituto do bastion)",
+      "preco_ref": "catalogo_ec2",
+      "padrao": "t3.micro",
+      "quantidade": "janela",
+      "unidade_conta": "Hrs",
+      "grupo": "operacao",
+      "opcional": false,
+      "por_que": "É onde vivem Terraform e Python com venv. Sem ele não há 'apertar o botão': é o pré-requisito do deploy. Também vem do catálogo, então dá para escolher um modelo maior sem tocar em código."
+    },
+    {
+      "id": "disco-terraform",
+      "descricao": "EBS gp3 — disco do host de operação (30 GB)",
+      "preco_ref": "ebs.gp3",
+      "quantidade": 30,
+      "unidade_conta": "GB-Mo",
+      "grupo": "operacao",
+      "opcional": false,
+      "por_que": "Só o necessário para o repositório e os snapshots de preço."
+    },
+    {
+      "id": "ipv4-terraform",
+      "descricao": "Endereço IPv4 público do host de operação",
+      "preco_ref": "ipv4.publico.em_uso",
+      "quantidade": "janela",
+      "unidade_conta": "Hrs",
+      "grupo": "operacao",
+      "opcional": false,
+      "por_que": "Necessário para o agente do SSM alcançar o serviço pela internet, já que não há NAT."
+    },
+    {
+      "id": "s3-acervo",
+      "descricao": "S3 Standard — acervo publicado pelo TechDocs",
+      "preco_ref": "s3.standard",
+      "quantidade": 5,
+      "unidade_conta": "GB-Mo",
+      "grupo": "armazenamento",
+      "opcional": false,
+      "por_que": "O site do acervo é servido do bucket. Cinco GB é folga larga para documentação."
+    },
+    {
+      "id": "s3-usuarios",
+      "descricao": "S3 Standard — bucket de usuários do catálogo",
+      "preco_ref": "s3.standard",
+      "quantidade": 1,
+      "unidade_conta": "GB-Mo",
+      "grupo": "armazenamento",
+      "opcional": false,
+      "por_que": "Bucket pequeno e estável."
+    },
+    {
+      "id": "s3-requisicoes-escrita",
+      "descricao": "S3 — requisições Tier1 (PUT/COPY/POST/LIST) das publicações do acervo",
+      "preco_ref": "s3.requisicoes.tier1",
+      "quantidade": 100000,
+      "unidade_conta": "Requests",
+      "grupo": "armazenamento",
+      "opcional": false,
+      "por_que": "Cada sync do TechDocs faz PUT por objeto. Cem mil cobre o período com folga."
+    },
+    {
+      "id": "s3-requisicoes-leitura",
+      "descricao": "S3 — requisições Tier2 (GET) da leitura do acervo",
+      "preco_ref": "s3.requisicoes.tier2",
+      "quantidade": 500000,
+      "unidade_conta": "Requests",
+      "grupo": "armazenamento",
+      "opcional": false,
+      "por_que": "Leitura é uma ordem de grandeza mais barata que escrita — por isso Tier2 e não Tier1."
+    },
+    {
+      "id": "ecr-imagem",
+      "descricao": "ECR — armazenamento da imagem do Backstage",
+      "preco_ref": "ecr.armazenamento",
+      "quantidade": 2,
+      "unidade_conta": "GB-Mo",
+      "grupo": "operacao",
+      "opcional": false,
+      "por_que": "Substitui o Docker Hub do homelab. Duas GB cobrem a imagem e a anterior, que vale manter para rollback."
+    },
+    {
+      "id": "egress",
+      "descricao": "Transferência de dados para a internet (egress)",
+      "preco_ref": "transferencia.internet",
+      "quantidade": 20,
+      "unidade_conta": "GB",
+      "grupo": "rede",
+      "opcional": false,
+      "por_que": "Pull de imagem e pacotes. Linha DECLARADA e ainda não precificada: o snapshot precisa trazer o preço oficial dela."
+    }
+  ]
+}

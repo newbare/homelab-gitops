@@ -1,0 +1,8 @@
+apiVersion: v2
+name: calculadora
+description: >-
+  Calculadora de custo AWS do laboratório Resilience Cloud — SPA + API em Python (só biblioteca padrão), servindo arquivos declarados aqui mesmo.
+
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

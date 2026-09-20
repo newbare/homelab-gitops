@@ -1,0 +1,23 @@
+{{- /*
+  DADOS: o BOM declarado e o SNAPSHOT de preços da lista oficial da AWS.
+
+  O snapshot é gerado por `buscar_precos.py`, que roda no host de operação (é
+  ele que tem Python e venv), e é COMMITADO. Motivo: o arquivo do EC2 na lista
+  oficial tem 288,8 MB — coisa que não cabe em Pod, muito menos em requisição.
+  O snapshot traz a `publicationDate` da própria AWS, então o número na tela
+  tem data e procedência.
+
+  Este ConfigMap é montado como volume de arquivo único, então o kubelet
+  atualiza o conteúdo no Pod. O servidor revalida pelo mtime: preço novo
+  aparece sem reiniciar nada.
+*/ -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: calculadora-dados
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: calculadora
+    app.kubernetes.io/part-of: resilience-cloud
+data:
+  {{- (.Files.Glob "dados/*").AsConfig | nindent 2 }}

@@ -1,0 +1,11 @@
+{{- /* Código da aplicação servido a partir do ConfigMap — sem imagem própria. */ -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: calculadora-api
+  namespace: {{ .Values.namespace }}
+  labels:
+    app.kubernetes.io/name: calculadora
+    app.kubernetes.io/part-of: resilience-cloud
+data:
+  {{- (.Files.Glob "api/*").AsConfig | nindent 2 }}

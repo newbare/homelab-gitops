@@ -1,0 +1,8 @@
+# Dependências de TESTE.
+#
+# A aplicação em si NÃO tem dependência: roda só com a biblioteca padrão, de
+# propósito — é o que permite o Pod ser imagem oficial do Python + ConfigMap,
+# sem `pip install`, sem Dockerfile e sem registry.
+#
+# Aqui só entra ferramenta de bancada.
+pytest>=8.0

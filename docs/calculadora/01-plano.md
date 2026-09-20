@@ -56,7 +56,11 @@ Descoberto e conferido nesta fase:
 ```
 mapa de preços:  https://calculator.aws/pricing/2.0/meteredUnitMaps/<família>/USD/current/<família>.json
                  (calculadora.aws — NÃO o CloudFront do manifest; o host errado dá 403)
-                 gzip: 632 KB → 2,1 MB; regenerado diariamente; 37 regiões; índice por rótulo humano
+                 gzip: 632 KB → 2,1 MB; regenerado diariamente; índice por rótulo humano
+                 ATENÇÃO: a contagem de regiões é POR MAPA, não uma só: medi 23, 36, 37, 38,
+                 40, 42, 106 e 110 em mapas diferentes — "37" era só o Lambda. E as famílias
+                 terminadas em `-calc` vêm com `regions` VAZIO: são mapa de outro formato, sem
+                 eixo de região, e não "serviço sem região disponível"
 cada dimensão:   { "price": "0.0000002000",
                    "rateCode": "ZZQXJMTMJJG6F4RP.JRTCKXETXF.6YS6EN2CT7" }
 ```
@@ -74,6 +78,47 @@ Resultado da conferência `rateCode` contra `rateCode`, em us-east-1:
 Em todos, a `publicationDate` do mapa oficial é **idêntica** à do Price List.
 **Conclusão: mesma fonte, mesma publicação, mesmo número.** A verificação é um
 join de dicionário — barata e automatizável.
+
+**Escopo inteiro (24 serviços, 33 nós, filhos descobertos do próprio manifest):**
+
+| medida | valor |
+|---|---|
+| rateCodes com o **mesmo** valor nas duas fontes | **10.150** |
+| rateCodes com valor **diferente** | **0** |
+| rateCodes do mapa que **não estão** na oferta indexada | **86** |
+| famílias conferidas | 100 (53 com oferta confirmada · 47 sem eixo de região) |
+
+Os 86 são **irredutíveis**: sondei uma lista larga de ofertas candidatas e nenhuma
+os contém. Ou seja, **a calculadora publica rateCodes que o Bulk Price List não
+publica** naquela região (todos do Redshift). Não é divergência de preço — é
+ausência do outro lado. Isso é motivo para manter as duas fontes e **medir** a
+cobertura, em vez de supor que as duas dizem a mesma coisa.
+
+### 1.6 A correspondência família → oferta é DADO, não adivinhação
+
+O mapa identifica a origem do preço por **família** (`lambda`, `rds-mysql-ondemand`,
+`s3`); o Price List, por **offerCode** (`AWSLambda`, `AmazonRDS`, `AmazonS3`). Casar
+os dois por semelhança de nome erra — e erra **em silêncio**:
+
+| família | oferta real | o que a semelhança de nome sugeria |
+|---|---|---|
+| `datatransfer-calc` | `AWSDataTransfer` | nada: o nome não diz |
+| `rds-mysql-ondemand` | `AmazonRDS` | `AmazonRDSForMySQL` — **não existe** |
+| `queueservice` | `AWSQueueService` | `AmazonSQS` — **não existe** |
+| `ebs-calculator` | `AmazonEC2` | `AmazonEBS` — **não existe** |
+| `natgateway` | `AmazonEC2` | `AmazonVPC` — é recurso de VPC, mas o preço mora no EC2 |
+| `s3` | `AmazonS3` | certo — mas a busca cortava candidatos nos 4 primeiros e o perdia |
+
+O caso `s3` mostra o preço do erro: a heurística "maior interseção" elegeu
+`AmazonS3` para a família `rds-aurora-storage` com 267 coincidências, quando o certo
+era `AmazonRDS`. Na tela isso apareceu como **267 acertos e 337 ausências** — não
+como falha. Ausência não grita.
+
+Por isso a correspondência vive em `apps/calculadora/dados/correspondencia.json`,
+com o caminho de obtenção registrado, e a conferência **indexa todas as ofertas do
+serviço mais as companheiras** (`AWSDataTransfer`) — porque um mapa pode conter
+dimensão publicada em outra oferta: o mapa do SQS e o do Kinesis Video trazem 155
+rateCodes com a data de publicação do `AWSDataTransfer`.
 
 ### 1.4 Armadilhas já mapeadas por terceiros (não descobrir de novo)
 
@@ -283,7 +328,7 @@ Cada fase é verificável sozinha e não depende da seguinte.
 
 | Fase | Entrega | Como se verifica |
 |---|---|---|
-| **F1** | Coletor do mapa oficial + **conferência `rateCode`** para os 24 | 1790/1790 no escopo atual; relatório de divergências |
+| **F1** | Coletor do mapa oficial + **conferência `rateCode`** para os 24 | ✅ **feito**: 10.150 iguais · 0 diferentes · 86 ausentes irredutíveis (Redshift) · correspondência em `dados/correspondencia.json` |
 | **F2** | Schema no Postgres + carga dos preços + `carga_log` | `select count(*), max(carregado_em) from preco` bate com o mapa |
 | **F3** | Leitor de definição → `/servicos/{code}/campos` | o formulário do Lambda tem os campos da definição, com tipo e opções |
 | **F4** | Cálculo de **um** serviço ponta a ponta (KMS: 6 dimensões) | total nosso == total da oficial para o mesmo config |
@@ -301,7 +346,7 @@ Cada fase é verificável sozinha e não depende da seguinte.
 | **A fórmula** — tenho as dimensões e os preços; **não tenho a aritmética** que os combina (ela vive no bundle do app, não na definição) | 🔴 aberto. Cada serviço terá a fórmula **nossa**, documentada e testada contra a oficial |
 | **A origem do agrupamento por categoria** | 🔴 aberto. Não está no manifest |
 | API da oficial **não documentada** | 🟡 aceito: cache + tolerância a falha + preço antigo íntegro |
-| **Regiões divergentes** — o mapa oficial tem 37; o Price List tem 106 descobertas | 🟡 decisão pendente: usar as 106 (mais cobertura) ou as 37 (mais fidelidade) |
+| **Regiões divergentes** | 🟢 medido e aceito: a cobertura é **por mapa** (23 a 110 regiões), não um número único. Onde a AWS não publica o serviço, ele não aparece — e isso é coberto com honestidade em vez de inventado |
 | Preço que muda entre o cálculo e a leitura | 🟢 mitigado: cada item guarda o `rate_code` e o preço usado no momento |
 | US$ 0 silencioso | 🟢 mitigado: item sem preço é **lacuna declarada**, nunca zero |
 

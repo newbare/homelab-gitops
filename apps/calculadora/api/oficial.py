@@ -56,13 +56,37 @@ CACHE_PADRAO = "/tmp/calculadora-cache"
 # que já provamos; as 37 da oficial entram como arquivo de dados na F1b.
 REGIAO_PADRAO = {"rotulo_oficial": "US East (N. Virginia)", "codigo_price_list": "us-east-1"}
 
-# Expansões para casar a família do mapa com o offerCode do Price List.
-EXPANSOES_FAMILIA = {
-    "kms": ["keymanagementservice", "kms"],
-    "eks": ["eks", "kubernetes"],
-    "lambda": ["lambda"],
-    "route53": ["route53"],
-}
+# ── correspondência família → offerCode (DADO, não heurística) ────────────────
+# Não é dedutível por nome: 'datatransfer-calc' → AWSDataTransfer,
+# 'rds-mysql-ondemand' → AmazonRDS, 'queueservice' → AWSQueueService.
+# Cada linha de `dados/correspondencia.json` foi confirmada por INTERSEÇÃO de
+# rateCode com o mapa oficial — nunca por semelhança de nome.
+ARQUIVO_CORRESPONDENCIA = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "dados", "correspondencia.json"
+)
+
+_correspondencia = None
+
+
+def correspondencia():
+    """Carrega (uma vez) a tabela família → oferta e as ofertas companheiras."""
+    global _correspondencia
+    if _correspondencia is None:
+        with open(os.path.abspath(ARQUIVO_CORRESPONDENCIA), encoding="utf-8") as arquivo:
+            _correspondencia = json.load(arquivo)
+    return _correspondencia
+
+
+def ofertas_da_familia(familia):
+    """As ofertas do Price List que publicam os preços desta família."""
+    entrada = (correspondencia().get("familias") or {}).get(familia) or {}
+    oferta = entrada.get("oferta")
+    return [oferta] if oferta else []
+
+
+def ofertas_companheiras():
+    """Ofertas que aparecem DENTRO de mapas alheios (transferência, sobretudo)."""
+    return correspondencia().get("ofertas_companheiras") or []
 
 
 # ── rede ─────────────────────────────────────────────────────────────────────
@@ -173,31 +197,12 @@ def ratecodes_do_mapa(url_mapa, rotulo_regiao, cache_dir=CACHE_PADRAO):
     return precos, mapa
 
 
-def escolher_oferta(familia, oficiais, indice=None, cache_dir=CACHE_PADRAO):
-    """Qual offerCode do Price List corresponde a esta família de mapa.
-
-    Não é adivinhação: testa os candidatos por nome e escolhe o que tem MAIS
-    `rateCode` em comum com o mapa oficial. O vencedor é confirmado por
-    interseção, não por semelhança de nome.
-    """
-    if not oficiais:
-        return None, {}, None
-    indice = indice if indice is not None else indice_ofertas(cache_dir)
-    expansoes = EXPANSOES_FAMILIA.get(str(familia).lower(), [str(familia).lower()])
-    candidatos = [c for c in indice if any(e in c.lower() for e in expansoes)][:4]
-
-    melhor = None
-    for candidato in candidatos:
-        try:
-            precos, publicacao = ratecodes_do_price_list(candidato, "us-east-1", cache_dir)
-        except (urllib.error.HTTPError, urllib.error.URLError, ValueError):
-            continue
-        comum = len(set(oficiais) & set(precos))
-        if comum and (melhor is None or comum > melhor[1]):
-            melhor = (candidato, comum, precos, publicacao)
-    if melhor is None:
-        return None, {}, None
-    return melhor[0], melhor[2], melhor[3]
+# `escolher_oferta` foi REMOVIDA. Casar família→oferta por heurística de nome
+# escolheu a oferta errada no Aurora: 'maior interseção' elegeu o AmazonS3 com 267
+# coincidências, em vez do AmazonRDS. O erro não apareceu como falha — apareceu
+# como 267 acertos e 337 ausências. Hoje a correspondência vem de
+# `dados/correspondencia.json`, e o índice soma TODAS as ofertas do serviço mais
+# as companheiras, porque um mapa pode conter dimensão publicada em outra oferta.
 
 
 # ── conferência ──────────────────────────────────────────────────────────────
@@ -241,32 +246,66 @@ def conferir(catalogo, service_code, regiao=None, cache_dir=CACHE_PADRAO):
         return relatorio
 
     oficial_total = {}
-    # ⚠️ A família para casar a oferta tem de ser a do mapa que TEM preço nesta
-    # região. O Route 53 declara dois mapas (route53 e route53regionalchina) e o
-    # da China não tem us-east-1 — pegar o primeiro daria SEM_OFERTA por engano.
-    familia = None
+    familias_com_regiao = []
+    mapas_sem_regiao = 0
     for mapa in mapas:
         try:
             precos, meta = ratecodes_do_mapa(mapa["url"], regiao["rotulo_oficial"], cache_dir)
         except (urllib.error.HTTPError, urllib.error.URLError, ValueError) as erro:
             relatorio["motivo"] = f"mapa {mapa['familia']} indisponível: {erro}"
             continue
-        if precos:
-            oficial_total.update(precos)
-            familia = familia or mapa["familia"]
-            relatorio["publicacao_mapa"] = (meta.get("manifest") or {}).get("hawkFilePublicationDate")
+        if not precos:
+            # Família sem eixo de região: os mapas "-calc" vêm com `regions` VAZIO.
+            # Não é falha nem falta de região — é outro formato de mapa, com preço
+            # resolvido por combinação de campos em vez de por região. O Route 53
+            # também cai aqui às vezes: ele declara dois mapas e o da China não tem
+            # us-east-1. Por isso a família vem do mapa que TEM a região.
+            mapas_sem_regiao += 1
+            continue
+        oficial_total.update(precos)
+        familias_com_regiao.append(mapa["familia"])
+        relatorio["publicacao_mapa"] = (meta.get("manifest") or {}).get("hawkFilePublicationDate")
 
-    if not oficial_total or not familia:
+    relatorio["mapas_sem_regiao"] = mapas_sem_regiao
+
+    if not oficial_total:
         relatorio["status"] = "SEM_MAPA"
         relatorio["motivo"] = relatorio["motivo"] or f"nenhum mapa tem {regiao['rotulo_oficial']}"
         return relatorio
-    oferta, precos_nossos, publicacao = escolher_oferta(familia, oficial_total, cache_dir=cache_dir)
-    relatorio["oferta"] = oferta
-    relatorio["publicacao_price_list"] = publicacao
 
-    if not oferta:
+    # O índice NÃO é uma oferta só. Um mapa de serviço costuma carregar dimensões
+    # publicadas em OUTRA oferta: o mapa do SQS e o do Kinesis Video trazem 155
+    # rateCodes com a data de publicação do AWSDataTransfer, e o do Redshift traz
+    # preço de S3. Então indexamos todas as ofertas das famílias DESTE serviço mais
+    # as companheiras — e a ausência passa a ser ausência no índice, não "ausência
+    # no Price List", que seria afirmação forte demais.
+    ofertas = []
+    for familia in familias_com_regiao:
+        for oferta in ofertas_da_familia(familia):
+            if oferta not in ofertas:
+                ofertas.append(oferta)
+    for companheira in ofertas_companheiras():
+        if companheira not in ofertas:
+            ofertas.append(companheira)
+
+    precos_nossos = {}
+    publicacoes = set()
+    for oferta in ofertas:
+        try:
+            precos, publicacao = ratecodes_do_price_list(oferta, regiao["codigo_price_list"], cache_dir)
+        except (urllib.error.HTTPError, urllib.error.URLError, ValueError):
+            continue
+        precos_nossos.update(precos)
+        if publicacao:
+            publicacoes.add(publicacao)
+
+    relatorio["ofertas_indexadas"] = ofertas
+    relatorio["oferta"] = ",".join(ofertas)
+    relatorio["publicacao_price_list"] = ",".join(sorted(publicacoes)) or None
+
+    if not precos_nossos:
         relatorio["status"] = "SEM_OFERTA"
-        relatorio["motivo"] = f"nenhum offerCode casou com a família {familia!r}"
+        relatorio["motivo"] = f"nenhuma oferta indexada tem preço em {regiao['codigo_price_list']}"
         return relatorio
 
     for rate_code, preco_oficial in oficial_total.items():

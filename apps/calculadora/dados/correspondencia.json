@@ -1,0 +1,575 @@
+{
+  "descricao": "Correspondencia entre a familia do mapa de preco da calculadora da AWS e o offerCode do AWS Bulk Price List. NAO e dedutivel por nome — o preco do EBS e do NAT gateway, por exemplo, e publicado na oferta AmazonEC2. Cada linha com oferta foi confirmada por INTERSECAO de rateCode.",
+  "como_foi_obtida": "Para cada familia declarada pelos servicos do escopo, os candidatos foram testados e o vencedor escolhido pela MAIOR INTERSECAO de rateCode com o mapa oficial (nunca por semelhanca de nome), com a oferta irma como ultimo recurso. Onde nem isso alcancou, houve sonda direta. O caminho trilhado na v1 errou a familia s3 por cortar candidatos nos 4 primeiros: AmazonS3 perdeu para nomes mais longos que tambem contem s3, e o erro apareceu como 267 ausencias — nao como erro.",
+  "ofertas_companheiras": [
+    "AWSDataTransfer"
+  ],
+  "observacao_companheiras": "Um mapa de servico pode conter dimensoes publicadas em OUTRA oferta: o mapa do SQS e o do Kinesis Video trazem 155 rateCodes com a data de publicacao do AWSDataTransfer. Por isso a conferencia indexa todas as ofertas da familia mais as companheiras, e a ausencia e reportada como \"ausente no indice\", nao como \"nao existe no Price List\".",
+  "resumo": {
+    "familias": 100,
+    "com_oferta_confirmada": 53,
+    "sem_eixo_de_regiao": 47,
+    "com_ratecodes_fora_da_oferta": 3,
+    "ratecodes_fora_da_oferta": 180,
+    "ratecodes_fora_da_oferta_unicos": 94,
+    "nota": "As familias com ratecodes fora da oferta foram sondadas contra uma lista larga de ofertas candidatas: a diferenca e IRREDUTIVEL, ou seja, esses rateCodes existem no mapa da calculadora mas nao estao publicados no arquivo do Bulk Price List para esta regiao. Nenhum deles diverge de valor: simplesmente nao existem do outro lado. A soma por familia (180) conta duas vezes: redshift e redshift-storage compartilham o mesmo mapa, entao o total UNICO e 94 (8 do dynamodb + 86 do redshift)."
+  },
+  "familias": {
+    "cloudformation": {
+      "oferta": "AWSCloudFormation",
+      "ratecodes_no_mapa": 4,
+      "conferidos": 4,
+      "publicacao_price_list": "2026-09-11T12:45:31Z"
+    },
+    "cloudwan": {
+      "oferta": "AWSCloudWAN",
+      "ratecodes_no_mapa": 7,
+      "conferidos": 7,
+      "publicacao_price_list": "2026-09-11T12:45:31Z"
+    },
+    "cloudwatch": {
+      "oferta": "AmazonCloudWatch",
+      "ratecodes_no_mapa": 152,
+      "conferidos": 152,
+      "publicacao_price_list": "2026-09-18T14:21:58Z"
+    },
+    "datatransfer-calc": {
+      "oferta": "AWSDataTransfer",
+      "ratecodes_no_mapa": 155,
+      "conferidos": 155,
+      "publicacao_price_list": "2026-09-16T13:22:08Z"
+    },
+    "dax-instances-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "dedicatedhost-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "dsp-join-with-rds-aurora-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "dsp-join-with-rds-aurora-io-opti-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "dsp-join-with-rds-aurora-mysql-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "dsp-join-with-rds-aurora-mysql-io-opti-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "dsp-join-with-rds-db2-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "dsp-join-with-rds-mariadb-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "dsp-join-with-rds-mysql-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "dsp-join-with-rds-oracle-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "dsp-join-with-rds-postgresql-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "dsp-join-with-rds-serverless-aurora-mysql": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "dsp-join-with-rds-serverless-aurora-mysql-standard": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "dsp-join-with-rds-serverless-aurora-psql-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "dsp-join-with-rds-serverless-aurora-psql-standard-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "dsp-join-with-rds-sqlserver-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "dynamodb": {
+      "oferta": "AmazonDynamoDB",
+      "ratecodes_no_mapa": 40,
+      "conferidos": 32,
+      "faltam_na_oferta": 8,
+      "publicacao_price_list": "2026-09-11T12:44:22Z"
+    },
+    "ebs-calculator": {
+      "oferta": "AmazonEC2",
+      "ratecodes_no_mapa": 31,
+      "conferidos": 31,
+      "como_foi_obtida": "sonda direta (EBS e publicado na oferta do EC2)"
+    },
+    "efs": {
+      "oferta": "AmazonEFS",
+      "ratecodes_no_mapa": 15,
+      "conferidos": 15,
+      "publicacao_price_list": "2026-09-11T12:44:25Z"
+    },
+    "eks": {
+      "oferta": "AmazonEKS",
+      "ratecodes_no_mapa": 1201,
+      "conferidos": 1201,
+      "publicacao_price_list": "2026-09-18T16:42:36Z"
+    },
+    "elasticmapreduce": {
+      "oferta": "ElasticMapReduce",
+      "ratecodes_no_mapa": 955,
+      "conferidos": 955,
+      "publicacao_price_list": "2026-09-11T12:46:31Z"
+    },
+    "elasticmapreduce-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "elasticmapreduce-serverless": {
+      "oferta": "ElasticMapReduce",
+      "ratecodes_no_mapa": 955,
+      "conferidos": 955,
+      "publicacao_price_list": "2026-09-11T12:46:31Z"
+    },
+    "elb": {
+      "oferta": "AWSELB",
+      "ratecodes_no_mapa": 14,
+      "conferidos": 14,
+      "publicacao_price_list": "2026-09-11T12:45:44Z"
+    },
+    "events": {
+      "oferta": "AWSEvents",
+      "ratecodes_no_mapa": 12,
+      "conferidos": 12,
+      "publicacao_price_list": "2026-09-11T12:45:49Z"
+    },
+    "glacier": {
+      "oferta": "AmazonGlacier",
+      "ratecodes_no_mapa": 16,
+      "conferidos": 16,
+      "publicacao_price_list": "2026-09-11T12:44:32Z"
+    },
+    "glue": {
+      "oferta": "AWSGlue",
+      "ratecodes_no_mapa": 22,
+      "conferidos": 22,
+      "publicacao_price_list": "2026-09-11T12:45:52Z"
+    },
+    "kinesis": {
+      "oferta": "AmazonKinesis",
+      "ratecodes_no_mapa": 24,
+      "conferidos": 24,
+      "publicacao_price_list": "2026-09-11T12:44:43Z"
+    },
+    "kinesisanalytics": {
+      "oferta": "AmazonKinesisAnalytics",
+      "ratecodes_no_mapa": 6,
+      "conferidos": 6,
+      "publicacao_price_list": "2026-09-11T12:44:44Z"
+    },
+    "kinesisfirehose": {
+      "oferta": "AmazonKinesisFirehose",
+      "ratecodes_no_mapa": 40,
+      "conferidos": 40,
+      "publicacao_price_list": "2026-09-11T12:44:46Z"
+    },
+    "kinesisvideo": {
+      "oferta": "AmazonKinesisVideo",
+      "ratecodes_no_mapa": 28,
+      "conferidos": 28,
+      "publicacao_price_list": "2026-09-11T13:41:26Z"
+    },
+    "kms": {
+      "oferta": "awskms",
+      "ratecodes_no_mapa": 6,
+      "conferidos": 6,
+      "publicacao_price_list": "2026-09-11T12:46:01Z"
+    },
+    "lambda": {
+      "oferta": "AWSLambda",
+      "ratecodes_no_mapa": 553,
+      "conferidos": 553,
+      "publicacao_price_list": "2026-09-19T00:23:59Z"
+    },
+    "natgateway": {
+      "oferta": "AmazonEC2",
+      "ratecodes_no_mapa": 6,
+      "conferidos": 6,
+      "como_foi_obtida": "sonda direta (recurso de VPC, preco publicado na oferta do EC2)"
+    },
+    "queueservice": {
+      "oferta": "AWSQueueService",
+      "ratecodes_no_mapa": 7,
+      "conferidos": 7,
+      "publicacao_price_list": "2026-09-11T12:46:07Z"
+    },
+    "rds-aurora-iooptimization-mysql-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "rds-aurora-iooptimization-postgresql-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "rds-aurora-mysql-compatible-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "rds-aurora-mysql-compatible-dsp-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "rds-aurora-mysql-compatible-dsp-v1-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "rds-aurora-postgresql-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "rds-aurora-postgresql-dsp-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "rds-aurora-postgresql-dsp-v1-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "rds-aurora-storage": {
+      "oferta": "AmazonRDS",
+      "ratecodes_no_mapa": 88,
+      "conferidos": 88,
+      "publicacao_price_list": "2026-09-17T23:42:46Z"
+    },
+    "rds-db2-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "rds-db2-ondemand": {
+      "oferta": "AmazonRDS",
+      "ratecodes_no_mapa": 622,
+      "conferidos": 622,
+      "publicacao_price_list": "2026-09-17T23:42:46Z"
+    },
+    "rds-mariadb-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "rds-mariadb-ondemand": {
+      "oferta": "AmazonRDS",
+      "ratecodes_no_mapa": 682,
+      "conferidos": 682,
+      "publicacao_price_list": "2026-09-17T23:42:46Z"
+    },
+    "rds-mysql-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "rds-mysql-ondemand": {
+      "oferta": "AmazonRDS",
+      "ratecodes_no_mapa": 797,
+      "conferidos": 797,
+      "publicacao_price_list": "2026-09-17T23:42:46Z"
+    },
+    "rds-oracle-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "rds-oracle-ondemand": {
+      "oferta": "AmazonRDS",
+      "ratecodes_no_mapa": 1068,
+      "conferidos": 1068,
+      "publicacao_price_list": "2026-09-17T23:42:46Z"
+    },
+    "rds-postgresql-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "rds-postgresql-ondemand": {
+      "oferta": "AmazonRDS",
+      "ratecodes_no_mapa": 797,
+      "conferidos": 797,
+      "publicacao_price_list": "2026-09-17T23:42:46Z"
+    },
+    "rds-proxy": {
+      "oferta": "AmazonRDS",
+      "ratecodes_no_mapa": 88,
+      "conferidos": 88,
+      "publicacao_price_list": "2026-09-17T23:42:46Z"
+    },
+    "rds-sqlserver-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "rds-sqlserver-ondemand": {
+      "oferta": "AmazonRDS",
+      "ratecodes_no_mapa": 1161,
+      "conferidos": 1161,
+      "publicacao_price_list": "2026-09-17T23:42:46Z"
+    },
+    "rds-storage-ops": {
+      "oferta": "AmazonRDS",
+      "ratecodes_no_mapa": 185,
+      "conferidos": 185,
+      "publicacao_price_list": "2026-09-17T23:42:46Z"
+    },
+    "rdsocpulicensefees": {
+      "oferta": "AmazonRDSOCPULicenseFees",
+      "ratecodes_no_mapa": 10,
+      "conferidos": 10,
+      "publicacao_price_list": "2026-09-11T22:24:54Z"
+    },
+    "redshift": {
+      "oferta": "AmazonRedshift",
+      "ratecodes_no_mapa": 140,
+      "conferidos": 54,
+      "faltam_na_oferta": 86,
+      "publicacao_price_list": "2026-09-11T12:45:05Z"
+    },
+    "redshift-calc-new": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "redshift-storage": {
+      "oferta": "AmazonRedshift",
+      "ratecodes_no_mapa": 140,
+      "conferidos": 54,
+      "faltam_na_oferta": 86,
+      "publicacao_price_list": "2026-09-11T12:45:05Z"
+    },
+    "route53": {
+      "oferta": "AmazonRoute53",
+      "ratecodes_no_mapa": 12,
+      "conferidos": 12,
+      "publicacao_price_list": "2026-09-11T12:45:04Z"
+    },
+    "route53regionalchina": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "s3": {
+      "oferta": "AmazonS3",
+      "ratecodes_no_mapa": 267,
+      "conferidos": 267,
+      "publicacao_price_list": "2026-09-18T17:47:47Z"
+    },
+    "s3-glacier-flexibleretrieval": {
+      "oferta": "AmazonS3",
+      "ratecodes_no_mapa": 196,
+      "conferidos": 196,
+      "publicacao_price_list": "2026-09-18T17:47:47Z"
+    },
+    "s3-glacier-instantretrieval": {
+      "oferta": "AmazonS3",
+      "ratecodes_no_mapa": 196,
+      "conferidos": 196,
+      "publicacao_price_list": "2026-09-18T17:47:47Z"
+    },
+    "s3-intelligent-tiering": {
+      "oferta": "AmazonS3",
+      "ratecodes_no_mapa": 196,
+      "conferidos": 196,
+      "publicacao_price_list": "2026-09-18T17:47:47Z"
+    },
+    "s3-onezone-infrequent": {
+      "oferta": "AmazonS3",
+      "ratecodes_no_mapa": 196,
+      "conferidos": 196,
+      "publicacao_price_list": "2026-09-18T17:47:47Z"
+    },
+    "s3-standard": {
+      "oferta": "AmazonS3",
+      "ratecodes_no_mapa": 196,
+      "conferidos": 196,
+      "publicacao_price_list": "2026-09-18T17:47:47Z"
+    },
+    "s3-standard-infrequent": {
+      "oferta": "AmazonS3",
+      "ratecodes_no_mapa": 196,
+      "conferidos": 196,
+      "publicacao_price_list": "2026-09-18T17:47:47Z"
+    },
+    "s3glacierdeeparchive": {
+      "oferta": "AmazonS3GlacierDeepArchive",
+      "ratecodes_no_mapa": 22,
+      "conferidos": 22,
+      "publicacao_price_list": "2026-09-11T12:45:07Z"
+    },
+    "sagemaker-autopilot": {
+      "oferta": "AmazonSageMaker",
+      "ratecodes_no_mapa": 1,
+      "conferidos": 1,
+      "publicacao_price_list": "2026-09-20T02:56:06Z"
+    },
+    "sagemaker-batch-instances-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "sagemaker-datastore": {
+      "oferta": "AmazonSageMaker",
+      "ratecodes_no_mapa": 8,
+      "conferidos": 8,
+      "publicacao_price_list": "2026-09-20T02:56:06Z"
+    },
+    "sagemaker-datawrangler-interactive-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "sagemaker-datawrangler-processing-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "sagemaker-edge": {
+      "oferta": "AmazonSageMaker",
+      "ratecodes_no_mapa": 6,
+      "conferidos": 6,
+      "publicacao_price_list": "2026-09-20T02:56:06Z"
+    },
+    "sagemaker-hosting-instances-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "sagemaker-inference": {
+      "oferta": "AmazonSageMaker",
+      "ratecodes_no_mapa": 30,
+      "conferidos": 30,
+      "publicacao_price_list": "2026-09-20T02:56:06Z"
+    },
+    "sagemaker-inference-async-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "sagemaker-inference-hosting-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "sagemaker-inference-notebook-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "sagemaker-instances-studio-codeeditor-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "sagemaker-mlflow": {
+      "oferta": "AmazonSageMaker",
+      "ratecodes_no_mapa": 4,
+      "conferidos": 4,
+      "publicacao_price_list": "2026-09-20T02:56:06Z"
+    },
+    "sagemaker-notebook-instances-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "sagemaker-processing-instances-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "sagemaker-rstudio-server-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "sagemaker-rstudio-session-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "sagemaker-storage": {
+      "oferta": "AmazonSageMaker",
+      "ratecodes_no_mapa": 11,
+      "conferidos": 11,
+      "publicacao_price_list": "2026-09-20T02:56:06Z"
+    },
+    "sagemaker-studionotebook-instances-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "sagemaker-training-instances-calc": {
+      "oferta": null,
+      "ratecodes_no_mapa": 0,
+      "motivo": "SEM_EIXO_REGIAO: o mapa nao tem US East (N. Virginia)"
+    },
+    "sns": {
+      "oferta": "AmazonSNS",
+      "ratecodes_no_mapa": 35,
+      "conferidos": 35,
+      "publicacao_price_list": "2026-09-15T15:19:44Z"
+    },
+    "sns-addons": {
+      "oferta": "AmazonSNS",
+      "ratecodes_no_mapa": 35,
+      "conferidos": 35,
+      "publicacao_price_list": "2026-09-15T15:19:44Z"
+    },
+    "vpc": {
+      "oferta": "AmazonVPC",
+      "ratecodes_no_mapa": 66,
+      "conferidos": 66,
+      "publicacao_price_list": "2026-09-17T19:05:28Z"
+    },
+    "waf": {
+      "oferta": "awswaf",
+      "ratecodes_no_mapa": 67,
+      "conferidos": 67,
+      "publicacao_price_list": "2026-09-14T16:39:21Z"
+    }
+  }
+}

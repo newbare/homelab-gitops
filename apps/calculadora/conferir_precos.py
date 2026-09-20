@@ -56,9 +56,15 @@ def imprimir(relatorio, detalhe=False):
         extra += f" diferentes={len(relatorio['diferentes'])}"
     if relatorio["ausentes"]:
         extra += f" ausentes={len(relatorio['ausentes'])}"
-    publicacao = relatorio.get("publicacao_mapa") or "-"
-    print(f"  [{marca}] {relatorio['service_code']:<40} {extra:<34} "
-          f"oferta={str(relatorio['oferta']):<20} pub={publicacao}")
+    ofertas = relatorio.get("ofertas_indexadas") or []
+    # 1 oferta é o caso simples; várias significa que o mapa traz dimensão de fora.
+    rotulo_ofertas = ofertas[0] if len(ofertas) == 1 else f"{len(ofertas)} ofertas"
+    if relatorio.get("mapas_sem_regiao"):
+        extra += f" sem_regiao={relatorio['mapas_sem_regiao']}"
+    print(f"  [{marca}] {relatorio['service_code']:<40} {extra:<40} "
+          f"oferta={rotulo_ofertas:<20} pub={relatorio.get('publicacao_mapa') or '-'}")
+    if detalhe and len(ofertas) > 1:
+        print(f"          índice: {', '.join(ofertas)}")
     if relatorio.get("motivo") and status not in ("VERIFICADO",):
         print(f"          motivo: {relatorio['motivo']}")
     if detalhe:
@@ -77,8 +83,12 @@ def conferir_com_filhos(catalogo, codigo, regiao, cache_dir, max_filhos, detalhe
     """
     relatorio = oficial.conferir(catalogo, codigo, regiao, cache_dir)
     imprimir(relatorio, detalhe)
+    # Serviço que NÃO é pai e está divergente também é pendência. Sem isto o
+    # portão do CLI não portava nada: só pai era avaliado, e o exit code saía 0
+    # com divergência na tela.
+    ruins = [] if relatorio["status"] in ("VERIFICADO", "FILHO_NECESSARIO") else [relatorio]
     if relatorio["status"] != "FILHO_NECESSARIO" or max_filhos <= 0:
-        return [relatorio], []
+        return [relatorio], ruins
 
     entrada = catalogo.get(codigo) or {}
     filhos = (entrada.get("templates") or [])[:max_filhos]
@@ -145,6 +155,9 @@ def main():
     print(f"  rateCodes diferentes ...... {diferentes}")
     print(f"  rateCodes ausentes ........ {ausentes}")
     print(f"  pendências ................ {len(ruins)}")
+    print()
+    print("  Nota: 'ausentes' = não encontrado nas ofertas indexadas, não 'não existe'.")
+    print("  Famílias com mapa sem eixo de região são contadas como sem_regiao, não como falha.")
 
     if ruins:
         print()

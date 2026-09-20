@@ -9,10 +9,14 @@ confinamento de caminho e o mapa de códigos de erro.
 from __future__ import annotations
 
 import json
+import re
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 import pytest
+
+BASE_WEB = Path(__file__).resolve().parent.parent / "web"
 
 # Rotas implementadas. `/api/estado` é ALIAS de `/healthz`, mantida por
 # compatibilidade e omitida da spec de propósito: duas entradas para a mesma
@@ -230,6 +234,47 @@ def test_png_chega_inteiro(base_url):
     # A marca vem de ConfigMap em base64; se o round-trip quebrar, o logo some.
     _, cabecalhos, corpo = pedir(base_url + "/logo-resilience-full.png")
     assert corpo[:8] == b"\x89PNG\r\n\x1a\n", "o arquivo servido não é um PNG válido"
+
+
+# ---------------------------------------------------------------------------
+# Logos da stack — o deslize que só apareceria no palco
+# ---------------------------------------------------------------------------
+def logos_referenciados() -> set[str]:
+    """Nomes de logo citados no app.js (os itens com `tec: '...'`)."""
+    fonte = (BASE_WEB / "app.js").read_text(encoding="utf-8")
+    return set(re.findall(r"tec: '([a-z0-9]+)'", fonte))
+
+
+def test_todo_logo_referenciado_existe():
+    """
+    Um `tec:` com typo vira imagem quebrada — e imagem quebrada aparece na
+    APRESENTAÇÃO, não no desenvolvimento. Este teste troca a surpresa de lugar.
+    """
+    faltando = sorted(t for t in logos_referenciados() if not (BASE_WEB / f"tec-{t}.svg").exists())
+    assert faltando == [], f"logos citados no app.js que não existem: {faltando}"
+
+
+def test_nenhum_logo_versionado_sobrando():
+    """
+    O caminho contrário: logo baixado e não usado é peso morto dentro do
+    ConfigMap e do chart. Este teste pegou dois na primeira execução.
+    """
+    versionados = {p.stem.removeprefix("tec-") for p in BASE_WEB.glob("tec-*.svg")}
+    sobrando = sorted(versionados - logos_referenciados())
+    assert sobrando == [], (
+        f"logos versionados que ninguém usa: {sobrando} — remova o arquivo ou cite no app.js"
+    )
+
+
+def test_todo_logo_versionado_e_servido(base_url):
+    """Cada arquivo de logo precisa sair pela HTTP como SVG de verdade."""
+    logos = sorted(p.name for p in BASE_WEB.glob("tec-*.svg"))
+    assert logos, "nenhum tec-*.svg encontrado em web/"
+    for nome in logos:
+        codigo, cabecalhos, corpo = pedir(f"{base_url}/{nome}")
+        assert codigo == 200, f"{nome} não foi servido"
+        assert "svg" in cabecalhos["Content-Type"]
+        assert b"<svg" in corpo[:400], f"{nome} não parece ser SVG"
 
 
 # ---------------------------------------------------------------------------

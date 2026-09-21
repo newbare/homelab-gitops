@@ -378,7 +378,7 @@ Cada fase é verificável sozinha e não depende da seguinte.
 | **F1** | Coletor do mapa oficial + **conferência `rateCode`** para os 24 | ✅ **feito**: 10.150 iguais · 0 diferentes · 86 ausentes irredutíveis (Redshift) · correspondência em `dados/correspondencia.json` |
 | **F2** | Schema no Postgres + carga dos preços + `carga_log` | ✅ **feito e executado** (2026-09-20): **8.726 rateCodes vigentes** em us-east-1, 0 divergências, 125 testes. `api/pg.py` (cliente em biblioteca padrão, SCRAM-SHA-256), `sql/001-schema.sql`, `carregar_precos.py` com portão, Job declarativo em `infrastructure/postgresql/init-job.yaml` — ver [02-f2-carga.md](02-f2-carga.md) |
 | **F3** | Leitor de definição → `/servicos/{code}/templates/{template_id}/campos` | o formulário do Lambda tem os campos da definição, com tipo, `defaultValue`, validações e o `meteredUnit` de cada um. **Corrigido pela medição**: é por TEMPLATE (o Lambda tem 2) e `obrigatorio` vem de `validations.required`, aninhado |
-| **F4** | Cálculo de **um** serviço ponta a ponta (KMS: 6 dimensões) | total nosso == total da oficial para o mesmo config |
+| **F4** | Cálculo de **um** serviço ponta a ponta (KMS: 6 dimensões) | total nosso == total da oficial para o mesmo config. Agora com a conta **lida** de `mathsSection` e o preço resolvido por `meteredUnit.allRegions` (lookup direto) — os dois formatos de componente estão em [03 §4.1](03-anatomia-da-definicao.md) |
 | **F5** | Botão de atualizar preços com o portão de validação | carga boa grava; carga com divergência **recusa e não grava** |
 | **F6** | Cálculo dos serviços por família (compute, storage, rede, dados) | um por família, conferido contra a oficial |
 | **F7** | Grupos hierárquicos + totais | por serviço, por grupo e total |
@@ -391,7 +391,7 @@ Cada fase é verificável sozinha e não depende da seguinte.
 | Risco | Estado |
 |---|---|
 | **A fórmula** | 🟢 **o plano estava errado, e a medição corrigiu**: a aritmética **está na definição**, em `cards[].mathsSection` (`basicMaths`, `operation: multiplication`, operandos que referenciam campo **e** preço). Deixa de ser "escrever a conta de cada serviço" e passa a ser "ler e executar", com a mesma conferência da F1 — ver [03-anatomia-da-definicao.md](03-anatomia-da-definicao.md) |
-| **O elo `meteredUnit` (nome) → `rateCode` (id opaco)** | 🔴 aberto. A definição dá o **nome** ("Encryption Key"); o mapa dá **preço sem nome**, indexado por um id opaco, e o `manifest` do mapa aponta para um `esIndex` — Elasticsearch interno da AWS. Pista a sondar: `.../meteredUnitMaps/<família>/USD/current/<calc-id>/<região>/primary-selector-aggregations.json` |
+| **O elo `meteredUnit` → preço** | 🟢 **resolvido, sem heurística**: `meteredUnit.allRegions` **é a chave do próprio mapa** — `mapa["regions"][região][meteredUnit.allRegions]` devolve o preço. Medido: 6 de 6 no KMS, 12 de 13 no EventBridge, 25 de 35 no CloudWatch. O que não casa são os componentes de preço **combinado**, que são outro formato — ver [03 §4.1](03-anatomia-da-definicao.md) |
 | **A origem do agrupamento por categoria (D8)** | 🔴 aberto. Não está no manifest |
 | API da oficial **não documentada** | 🟡 aceito: cache + tolerância a falha + preço antigo íntegro |
 | **Regiões divergentes** | 🟢 medido e aceito: a cobertura é **por mapa** (23 a 110 regiões), não um número único. Onde a AWS não publica o serviço, ele não aparece — e isso é coberto com honestidade em vez de inventado |

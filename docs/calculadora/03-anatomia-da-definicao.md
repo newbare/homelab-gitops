@@ -149,63 +149,100 @@ conferência que a F1 usou no preço.
 
 ---
 
-## 4. O que continua faltando: o **nome** do metered unit → o **rateCode**
+## 4. O elo `meteredUnit` → preço: **RESOLVIDO** (este documento estava errado)
 
-O elo que falta, e agora com o tamanho exato do problema:
+Eu escrevi aqui que a ligação só existia num Elasticsearch interno, porque a chave
+do mapa me pareceu um "id opaco" e o `sets` estava vazio. **Estava errado.**
 
-```
-definição      meteredUnit: { "allRegions": "Encryption Key" }     ← um NOME
-mapa de preço  regions["US East (N. Virginia)"][<id opaco>] =
-               { "rateCode": "NNYDKMC6UDJC5BNA.JRTCKXETXF.6YS6EN2CT7",
-                 "price": "0.0000100000",
-                 "RegionlessRateCode": "5IqyKzqZftmKSk_fiDfbuWXaObx-Wav6Zw9jM6bP60I" }
-                                                                   ← nenhum NOME
-```
+O componente de preço carrega o endereço do preço:
 
-Medido no mapa do KMS:
-
-- **`sets` está VAZIO** (`0` entradas). Eu supus que a ponte estaria ali; não está.
-- a chave de cada item da região **é igual ao `RegionlessRateCode`** — um id opaco,
-  não derivado do nome por nada que eu tenha encontrado.
-- o `manifest` do mapa tem `"esIndex": "plc-kms-usd-20260911124601"` — **um índice
-  de Elasticsearch**. É assim que a oficial resolve nome → preço: num índice
-  interno, que não é público.
-
-Ou seja: a oficial publica o **nome** (na definição) e o **preço** (no mapa), e
-faz a ligação num serviço interno nosso não temos.
-
-### 4.1 A pista para fechar isso (ainda NÃO confirmada)
-
-O repositório curado `aws-samples/sample-aws-pricing-calculator-mcp`
-(`catalog/README.md`) documenta uma **terceira superfície**, por calc-id e região:
-
-```
-https://calculator.aws/pricing/2.0/meteredUnitMaps/<família>/USD/current/<calc-id>/<região-url-encoded>/primary-selector-aggregations.json
+```json
+{ "type": "pricing", "subType": "singlePricePoint", "id": "cmkPrice",
+  "mappingDefinitionName": "kms",
+  "meteredUnit": { "allRegions": "Encryption Key" } }
 ```
 
-Nas palavras deles: *"for multi-template / multi-selector services (RDS, EC2,
-Fargate), the calculator's frontend fetches a JSON file listing every valid
-selector tuple before building the UI"*, e o exemplo dado é
-`.../rds/USD/current/rds-postgresql-calc/US%20East%20(N.%20Virginia)/primary-selector-aggregations.json`.
+`meteredUnit.allRegions` **é a chave daquele metered unit no mapa** — não um nome a
+traduzir. O lookup é direto:
 
-**Hipótese (não medida):** esse arquivo é a ponte. Ele é por `calc-id`, e a
-`<calc-id>` tem a forma das famílias que a F1 classificou como "mapas sem eixo de
-região" (`rds-postgresql-calc`, `rds-mysql-calc`, `dedicatedhost-calc`…). Se for
-isso, aquelas 47 famílias **não são um formato sem região** — são a mesma
-informação servida por um caminho por região, e o que a F1/F2 tratou como "sem
-eixo de região" ganha explicação.
+```python
+preco = mapa["regions"]["US East (N. Virginia)"][componente["meteredUnit"]["allRegions"]]
+```
 
-O próximo passo é uma sonda de 20 segundos nesse URL (script pronto em
-`/tmp/agregacoes.py`), que responde as duas perguntas de uma vez:
+Medido, comparando cada componente de preço com as chaves reais do mapa:
 
-1. o arquivo traz os `meteredUnit` **com nome**?
-2. a família `-calc` é a mesma coisa, servida por esse caminho?
+| serviço | chaves no mapa | componentes de preço | `allRegions` que É chave |
+|---|---|---|---|
+| KMS | 12 | 6 | **6 de 6** |
+| EventBridge | 21 | 13 | 12 de 13 |
+| CloudWatch | 208 | 35 | 25 de 35 |
+| SQS | 13 | 3 | 1 de 3 |
+| Lambda | 571 | 38 | 10 de 38 |
 
-Se a resposta for não, a saída honesta passa a ser: **casar por preço conferido**
-(o catálogo curado traz `minimalConfig` auditado para 60 serviços, e os preços
-públicos do KMS são conhecidos), sempre como *verificação* de um casamento
-encontrado por outro caminho — nunca como o casamento em si. Foi um casamento por
-semelhança de nome que produziu o erro do `AmazonS3` no Aurora.
+O que me enganou: em alguns serviços o valor é legível (`"Encryption Key"`,
+`"Lambda Edge-Requests"`) e em outros é um hash
+(`"M8QATjZO9cUYQz1nWgksW5SL-Tdu9le7of2vMo9w"`). O **formato** muda; o
+**significado** não. É o mesmo erro que a F1 cometeu com a família `s3`: concluir
+não-existência a partir de leitura parcial.
+
+De quebra, o mesmo teste mostrou um detalhe que a F2 já tratava por sorte: o mapa
+do KMS tem **12 chaves para 6 rateCodes** — o mesmo rateCode aparece duas vezes,
+sob chaves diferentes. A consolidação por rateCode da carga absorve isso, e o
+portão confere que os preços repetidos são iguais (foram: a carga passou).
+
+### 4.1 O que os 62% do Lambda que não casam realmente são
+
+Não são buraco nem mistério: são componentes **sem** `meteredUnit.allRegions`. O
+Lambda tem 38 componentes de preço em 2 templates, e a maioria não é de preço único
+— é de preço **combinado** (o que o catálogo curado chama de `pricingComboV2` e
+`tieredPricing`, onde o valor nasce da COMBINAÇÃO de seletores). Os que casam são
+exatamente os `singlePricePoint`.
+
+Então o F4 tem **dois formatos**, e não um:
+
+| formato | como resolve | estado |
+|---|---|---|
+| `singlePricePoint` + `meteredUnit.allRegions` | lookup direto na chave | ✅ resolvido |
+| combo / escalonado | ler a forma do componente e resolver a combinação | ⏳ a mapear |
+
+Separá-los é o que evita o erro clássico: tratar combo como preço único devolveria
+`KeyError` ou, pior, um preço plausível e errado.
+
+### 4.2 A sonda das famílias `-calc`: respondida — e não era a ponte
+
+```
+.../meteredUnitMaps/rds/USD/current/rds-postgresql-calc/US%20East%20(N.%20Virginia)/primary-selector-aggregations.json
+  → HTTP 200 · 162 KB · 1073 "aggregations", cada uma com
+    selectors: { Deployment Option, Instance Type, vCPU, Memory, TermType }
+
+.../meteredUnitMaps/kms/USD/current/kms/<região>/primary-selector-aggregations.json     → HTTP 404
+.../meteredUnitMaps/lambda/USD/current/lambda/<região>/primary-selector-aggregations.json → HTTP 404
+```
+
+Duas conclusões, uma de cada sinal:
+
+- **não é a ponte**: o conteúdo é combinação de seletor, não metered unit. E para
+  KMS — que já estava resolvido pelo `allRegions` — a rota dá 404;
+- **explica as 47 famílias `-calc`**: elas existem **por região**, sob um `calc-id`, e
+  o que publicam ali é a lista das combinações VÁLIDAS de seletor. A classificação
+  da F1 ("mapas sem eixo de região") descrevia corretamente o arquivo que eu baixei;
+  o que faltava era saber o que esses arquivos **são**. Agora sei — e isso importa
+  para o F4: esse arquivo é a fonte de "quais combinações a AWS precifica", que é o
+  que impede o formulário de oferecer uma combinação que não tem preço.
+
+### 4.3 O caminho honesto que ficou de reserva (não foi necessário)
+
+Antes de achar o `allRegions`, o plano era casar o nome do metered unit contra o
+`usagetype`/`productFamily` do Bulk Price List — atributos de máquina, publicados
+por SKU. Medido no KMS, esse casamento funciona razoavelmente
+(`…-KMS-Requests-Asymmetric-RSA_2048` ↔ "Asymmetric Requests RSA_2048"), mas **não
+generaliza**: no Lambda os componentes não têm nome nenhum, têm chave. Fica
+registrado como o que era — um plano B que a medição dispensou.
+
+A lição que sobra, e que vale mais que o atalho: **o dado estava no lugar óbvio o
+tempo todo** (a definição diz onde o preço mora; o mapa é indexado por isso), e eu
+fui procurar num Elasticsearch que nunca vi. Se eu tivesse escrito código sobre a
+hipótese do `esIndex`, teria construído uma ponte para lugar nenhum.
 
 ---
 

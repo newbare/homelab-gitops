@@ -201,7 +201,7 @@ preço (a diferença é a mesma do "lacuna declarada" do coletor atual).
 | # | Decisão | Resolução |
 |---|---|---|
 | **D1** | Escopo de serviços | **Aberto no motor, fechado na entrega.** O catálogo é lido do manifest (440); a entrega prioriza os 24 da tabela. Serviço novo entra como **dado**, sem código |
-| **D2** | Formulário de cada serviço | **Gerado a partir da definição.** Um renderizador lê `serviceDefinitionLocation` e desenha os campos. Não se escreve 24 formulários à mão |
+| **D2** | Formulário de cada serviço | **Gerado a partir da definição** — e por **template**, não por serviço: o Lambda tem 2 (`lambdaWithFreeTier` / `lambdaWithoutFreeTier`). O renderizador lê `templates[].cards[].inputSection` e desenha os campos. Não se escreve 24 formulários à mão — ver [03-anatomia-da-definicao.md](03-anatomia-da-definicao.md) |
 | **D3** | Fonte de preço | **AWS Price List API** — a mesma da oficial, já provada idêntica por `rateCode` |
 | **D4** | Onde o preço mora | **PostgreSQL** (ver §4). Banco e usuário próprios na instância compartilhada, conforme a regra de ouro da stack |
 | **D5** | Atualização de preço | **Botão na tela**, à critério do usuário. Sem cron. (Difere do `dbcost` de propósito: o usuário vê o resultado da validação) |
@@ -225,11 +225,20 @@ A distinção servidor × database × schema está em
 servico            (id, service_code UNIQUE, nome, descricao, sub_tipo,
                     is_active, definition_url, parent_service_code, visto_em)
 
--- formulário: os campos de cada serviço (vem da definição)
-campo_servico      (id, service_code FK, campo_id, tipo, sub_tipo, rotulo,
-                    opcoes JSONB, obrigatorio BOOL, ordem INT,
+-- formulário: os campos de cada TEMPLATE (um serviço pode ter VÁRIOS: o Lambda tem 2)
+template_servico   (id, service_code FK, template_id, titulo, descricao,
+                    mapping_from_template,        -- o template que ele herda
                     definition_version, visto_em)
-                    UNIQUE (service_code, campo_id)
+                    UNIQUE (service_code, template_id)
+
+campo_servico      (id, service_code FK, template_id, campo_id, tipo, sub_tipo,
+                    rotulo, opcoes JSONB,
+                    default_value JSONB,          -- sem isto o formulário nasce zerado
+                    obrigatorio BOOL,             -- de validations.required (aninhado)
+                    min_value NUMERIC, max_value NUMERIC,
+                    metered_unit TEXT,            -- o que este campo consome no preço
+                    ordem INT, definition_version, visto_em)
+                    UNIQUE (service_code, template_id, campo_id)
 
 -- região
 regiao             (id, codigo UNIQUE, rotulo, disponivel BOOL)
@@ -265,7 +274,6 @@ das suas linhas, e cada linha carrega o `rate_code` e o preço unitário usados.
 um número parecer estranho, dá para abrir e ver de onde veio.
 
 ### 4.1 Correção depois de rodar: um rateCode pode estar em mais de um mapa
-
 O plano supunha `1 rateCode = 1 linha`. A primeira carga de verdade mostrou que
 não é bem assim: **`redshift` e `redshift-storage` publicam os MESMOS 140
 rateCodes**, e o `cloudwatch` aparece no mapa do RDS e no do EC2. Medido: 16.402
@@ -275,6 +283,29 @@ O `UNIQUE (rate_code, regiao_codigo) WHERE vigente` continua certo — ele está
 certo *porque* a dimensão é identificada pelo rateCode, e não pelo mapa. O que
 mudou foi a carga: ela consolida antes de gravar, guarda em `atributos.mapas`
 quem declara cada preço, e **recusa** se dois mapas discordarem do valor.
+
+### 4.2 Correção depois de LER A DEFINIÇÃO: o formulário é por template
+
+A tabela `campo_servico` estava modelada por SERVIÇO
+(`UNIQUE (service_code, campo_id)`) — e isso não representa o Lambda, que tem
+**dois** templates (`lambdaWithFreeTier` e `lambdaWithoutFreeTier`). O formulário
+é por template, e o `cards[]` mora dentro dele. Daí `template_servico`, o
+`template_id` na chave e a rota `/servicos/{code}/templates/{template_id}/campos`.
+
+Três colunas nasceram da leitura do JSON real (o card do KMS, 12 componentes):
+
+| coluna | de onde vem | por que importa |
+|---|---|---|
+| `default_value` | `defaultValue` | o KMS sugere 5 CMKs; sem o padrão o formulário nasce vazio e o total nasce **zero** — a armadilha do "US$ 0 silencioso" |
+| `metered_unit` | `displayIf.exists.meteredUnit` | é o que permite dizer "este campo não tem preço publicado aqui" **em vez de mostrar zero** |
+| `min_value` / `max_value` | `validations` | validar na borda, e não no meio do cálculo |
+
+E uma correção de leitura: **`obrigatorio` não existe no topo do campo** — vem de
+`validations.required`, aninhado. Procurar `"required": true` no nível do
+componente devolveria zero, e o formulário passaria a aceitar tudo em branco.
+
+A anatomia completa, com os trechos de JSON medidos, está em
+[03-anatomia-da-definicao.md](03-anatomia-da-definicao.md).
 
 ---
 
@@ -346,7 +377,7 @@ Cada fase é verificável sozinha e não depende da seguinte.
 |---|---|---|
 | **F1** | Coletor do mapa oficial + **conferência `rateCode`** para os 24 | ✅ **feito**: 10.150 iguais · 0 diferentes · 86 ausentes irredutíveis (Redshift) · correspondência em `dados/correspondencia.json` |
 | **F2** | Schema no Postgres + carga dos preços + `carga_log` | ✅ **feito e executado** (2026-09-20): **8.726 rateCodes vigentes** em us-east-1, 0 divergências, 125 testes. `api/pg.py` (cliente em biblioteca padrão, SCRAM-SHA-256), `sql/001-schema.sql`, `carregar_precos.py` com portão, Job declarativo em `infrastructure/postgresql/init-job.yaml` — ver [02-f2-carga.md](02-f2-carga.md) |
-| **F3** | Leitor de definição → `/servicos/{code}/campos` | o formulário do Lambda tem os campos da definição, com tipo e opções |
+| **F3** | Leitor de definição → `/servicos/{code}/templates/{template_id}/campos` | o formulário do Lambda tem os campos da definição, com tipo, `defaultValue`, validações e o `meteredUnit` de cada um. **Corrigido pela medição**: é por TEMPLATE (o Lambda tem 2) e `obrigatorio` vem de `validations.required`, aninhado |
 | **F4** | Cálculo de **um** serviço ponta a ponta (KMS: 6 dimensões) | total nosso == total da oficial para o mesmo config |
 | **F5** | Botão de atualizar preços com o portão de validação | carga boa grava; carga com divergência **recusa e não grava** |
 | **F6** | Cálculo dos serviços por família (compute, storage, rede, dados) | um por família, conferido contra a oficial |
@@ -359,8 +390,9 @@ Cada fase é verificável sozinha e não depende da seguinte.
 
 | Risco | Estado |
 |---|---|
-| **A fórmula** — tenho as dimensões e os preços; **não tenho a aritmética** que os combina (ela vive no bundle do app, não na definição) | 🔴 aberto. Cada serviço terá a fórmula **nossa**, documentada e testada contra a oficial |
-| **A origem do agrupamento por categoria** | 🔴 aberto. Não está no manifest |
+| **A fórmula** | 🟢 **o plano estava errado, e a medição corrigiu**: a aritmética **está na definição**, em `cards[].mathsSection` (`basicMaths`, `operation: multiplication`, operandos que referenciam campo **e** preço). Deixa de ser "escrever a conta de cada serviço" e passa a ser "ler e executar", com a mesma conferência da F1 — ver [03-anatomia-da-definicao.md](03-anatomia-da-definicao.md) |
+| **O elo `meteredUnit` (nome) → `rateCode` (id opaco)** | 🔴 aberto. A definição dá o **nome** ("Encryption Key"); o mapa dá **preço sem nome**, indexado por um id opaco, e o `manifest` do mapa aponta para um `esIndex` — Elasticsearch interno da AWS. Pista a sondar: `.../meteredUnitMaps/<família>/USD/current/<calc-id>/<região>/primary-selector-aggregations.json` |
+| **A origem do agrupamento por categoria (D8)** | 🔴 aberto. Não está no manifest |
 | API da oficial **não documentada** | 🟡 aceito: cache + tolerância a falha + preço antigo íntegro |
 | **Regiões divergentes** | 🟢 medido e aceito: a cobertura é **por mapa** (23 a 110 regiões), não um número único. Onde a AWS não publica o serviço, ele não aparece — e isso é coberto com honestidade em vez de inventado |
 | Preço que muda entre o cálculo e a leitura | 🟢 mitigado: cada item guarda o `rate_code` e o preço usado no momento |

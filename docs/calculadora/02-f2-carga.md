@@ -116,11 +116,17 @@ make banco-parar
   catálogo: 440 serviços · escopo: 103 nós
   mapas com preço nesta região: 53 (16402 rateCodes)
   mapas sem eixo de região: 47 (formato `-calc`, não é falha)
-  escopo: 103 nós
   unidades/descrições obtidas para 13495 rateCodes
   conferidos: 18566 iguais · 0 divergentes · 142 ausentes no Price List
   gravados: 8726 preços em 53 mapas
 ```
+
+⚠️ Esses 47 mapas `-calc` **não são um formato sem região** — foi o que eu supus na
+F1. A investigação da definição ([03](03-anatomia-da-definicao.md)) mostrou que a
+oferta deles vive num caminho **por região**, sob um `calc-id`:
+`.../meteredUnitMaps/<família>/USD/current/<calc-id>/<região>/…`. A classificação
+"sem eixo de região" continua correta **para o arquivo que eu baixei**; o que muda
+é que agora sei o que esses arquivos são.
 
 E na base:
 
